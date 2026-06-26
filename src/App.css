@@ -1,0 +1,211 @@
+:root {
+  --green: #1a6b3c;
+  --green-light: #e8f5ee;
+  --red: #c0392b;
+  --gold: #f39c12;
+  --text: #1a1a2e;
+  --text-muted: #555;
+  --border: #d0d7de;
+  --bg: #f6f8fa;
+  --card-bg: #ffffff;
+  --radius: 10px;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+}
+
+.app {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 16px 48px;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────── */
+.site-header {
+  text-align: center;
+  padding: 40px 0 24px;
+}
+.site-header h1 {
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  font-weight: 800;
+  color: var(--green);
+  letter-spacing: -0.5px;
+}
+.ball { margin-right: 6px; }
+.subtitle {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+/* ── Country Picker ──────────────────────────────────────────────────── */
+.picker {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow);
+}
+.picker-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.picker-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--text-muted);
+  user-select: none;
+}
+.chip:hover { border-color: var(--green); color: var(--green); }
+.chip.active {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ── Match list ──────────────────────────────────────────────────────── */
+.main { }
+.match-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 40px 0;
+}
+
+/* ── Match Card ──────────────────────────────────────────────────────── */
+.match-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  box-shadow: var(--shadow);
+}
+.match-card.live { border-left: 4px solid var(--red); }
+.match-card.past { opacity: 0.65; }
+
+.match-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.group-badge {
+  background: var(--green-light);
+  color: var(--green);
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+.live-badge {
+  background: var(--red);
+  color: #fff;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.6 } }
+
+.match-teams {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.team {
+  font-size: 1.05rem;
+  font-weight: 700;
+  flex: 1;
+}
+.team.home { text-align: right; }
+.team.away { text-align: left; }
+.team.tracked { color: var(--green); }
+.vs {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.match-venue {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.match-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 0.15s;
+  border: none;
+  cursor: pointer;
+}
+.btn:hover { opacity: 0.85; }
+.btn-tvnz {
+  background: #00437a;
+  color: #fff;
+}
+.btn-gcal {
+  background: var(--green-light);
+  color: var(--green);
+  border: 1.5px solid var(--green);
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────── */
+.site-footer {
+  margin-top: 48px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.site-footer a { color: var(--green); }
