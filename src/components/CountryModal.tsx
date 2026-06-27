@@ -103,8 +103,16 @@ export function CountryModal({ country, standings, scores, onClose }: Props) {
           <table className="standings-table">
             <thead>
               <tr>
-                <th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th>
-                <th>GF</th><th>GA</th><th>GD</th><th>Pts</th>
+                <th title="Position">#</th>
+                <th>Team</th>
+                <th title="Played">P</th>
+                <th title="Won">W</th>
+                <th title="Drawn">D</th>
+                <th title="Lost">L</th>
+                <th title="Goals For">GF</th>
+                <th title="Goals Against">GA</th>
+                <th title="Goal Difference">GD</th>
+                <th title="Points">Pts</th>
               </tr>
             </thead>
             <tbody>

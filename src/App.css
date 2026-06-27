@@ -828,6 +828,7 @@ body {
   padding: 4px 6px;
   border-bottom: 1px solid var(--border);
 }
+.standings-table th[title] { cursor: help; }
 .standings-table th:nth-child(2) { text-align: left; }
 .standings-table td {
   text-align: center;
