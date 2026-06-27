@@ -47,65 +47,62 @@ export function MatchCard({ match, tracked, score, onInfo }: Props) {
   const cal = gcalUrl(match);
   const trackedLower = tracked.map((c) => c.toLowerCase());
 
-  // Build split background from both teams' colors
   const homeColor = countryColor(match.home);
   const awayColor = countryColor(match.away);
   const cardStyle = {
-    background: `linear-gradient(105deg, ${homeColor.bg} 0%, ${homeColor.bg} 45%, white 50%, ${awayColor.bg} 55%, ${awayColor.bg} 100%)`,
+    background: `linear-gradient(105deg, ${homeColor.bg} 0%, ${homeColor.bg} 45%, var(--surface) 50%, ${awayColor.bg} 55%, ${awayColor.bg} 100%)`,
     borderLeft: `3px solid ${homeColor.accent}`,
     borderRight: `3px solid ${awayColor.accent}`,
   };
 
   return (
     <li className={`match-card ${status}`} style={cardStyle}>
+      {/* Meta row */}
       <div className="match-meta">
         <span className="group-badge">Group {match.group}</span>
         {status === "live" && <span className="live-badge">LIVE</span>}
         {status === "past" && <span className="past-badge">FT</span>}
         <span>{formatNZT(match.startUtc)} NZT</span>
+        {stream && (
+          <a className="btn-tvnz-inline" href={stream} target="_blank" rel="noreferrer">📺 TVNZ+</a>
+        )}
       </div>
 
-      <div className="match-teams">
-        {/* Home — flag · name · ⓘ, right-aligned */}
-        <div className={`team home${isTracked(match.home, trackedLower) ? " tracked" : ""}`}>
-          <span className="team-flag">{flag(match.home)}</span>
-          <span className="team-name">{match.home}</span>
-          <button className="info-btn" aria-label={`Info about ${match.home}`} onClick={() => onInfo(match.home)} />
+      {/* Teams + score + cal button in one row */}
+      <div className="match-body">
+        <div className="match-teams">
+          <div className={`team home${isTracked(match.home, trackedLower) ? " tracked" : ""}`}>
+            <span className="team-flag">{flag(match.home)}</span>
+            <span className="team-name">{match.home}</span>
+            <button className="info-btn" aria-label={`Info about ${match.home}`} onClick={() => onInfo(match.home)} />
+          </div>
+
+          <div className="score-block">
+            {status !== "upcoming" && score ? (
+              <>
+                <span className="score-num">{score.home}</span>
+                <span className="score-sep">–</span>
+                <span className="score-num">{score.away}</span>
+              </>
+            ) : (
+              <span className="vs">vs</span>
+            )}
+          </div>
+
+          <div className={`team away${isTracked(match.away, trackedLower) ? " tracked" : ""}`}>
+            <button className="info-btn" aria-label={`Info about ${match.away}`} onClick={() => onInfo(match.away)} />
+            <span className="team-name">{match.away}</span>
+            <span className="team-flag">{flag(match.away)}</span>
+          </div>
         </div>
 
-        {/* Centre — score or vs */}
-        <div className="score-block">
-          {status !== "upcoming" && score ? (
-            <>
-              <span className="score-num">{score.home}</span>
-              <span className="score-sep">–</span>
-              <span className="score-num">{score.away}</span>
-            </>
-          ) : (
-            <span className="vs">vs</span>
-          )}
-        </div>
-
-        {/* Away — ⓘ · name · flag, left-aligned */}
-        <div className={`team away${isTracked(match.away, trackedLower) ? " tracked" : ""}`}>
-          <button className="info-btn" aria-label={`Info about ${match.away}`} onClick={() => onInfo(match.away)} />
-          <span className="team-name">{match.away}</span>
-          <span className="team-flag">{flag(match.away)}</span>
-        </div>
+        <a className="btn-cal-side" href={cal} target="_blank" rel="noreferrer" title="Add to Google Calendar">
+          <span className="btn-cal-icon">+</span>
+          <span className="btn-cal-label">Cal</span>
+        </a>
       </div>
 
       <p className="match-venue">📍 {match.venue}</p>
-
-      <div className="match-actions">
-        {stream && (
-          <a className="btn btn-tvnz" href={stream} target="_blank" rel="noreferrer">
-            📺 Watch on TVNZ+
-          </a>
-        )}
-        <a className="btn btn-gcal" href={cal} target="_blank" rel="noreferrer">
-          + Add to Google Calendar
-        </a>
-      </div>
     </li>
   );
 }

@@ -331,7 +331,8 @@ body {
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
+  flex: 1;
+  min-width: 0;
 }
 
 .team {
@@ -396,38 +397,63 @@ body {
 }
 
 .match-venue {
-  font-size: .76rem;
+  font-size: .73rem;
   color: var(--text-muted);
-  margin-bottom: 12px;
+  margin-top: 6px;
 }
 
-.match-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
-  border-radius: 6px;
-  font-size: .82rem;
-  font-weight: 600;
+/* TVNZ link lives inline in the meta row */
+.btn-tvnz-inline {
+  margin-left: auto;
+  font-size: .72rem;
+  font-weight: 700;
+  color: #5eb8ff;
   text-decoration: none;
-  transition: opacity .15s, transform .1s;
-  border: none;
-  cursor: pointer;
+  letter-spacing: .02em;
+  opacity: .8;
+  transition: opacity .15s;
 }
-.btn:hover { opacity: .85; transform: translateY(-1px); }
-.btn:active { transform: none; }
-.btn-tvnz { background: #00437a; color: #fff; }
-.btn-gcal {
+.btn-tvnz-inline:hover { opacity: 1; }
+
+/* Teams row + side cal button wrapper */
+.match-body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Side calendar button */
+.btn-cal-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
   background: transparent;
-  color: var(--green);
-  border: 1.5px solid var(--green);
+  text-decoration: none;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: border-color .15s, color .15s, background .15s;
 }
-.btn-gcal:hover { background: var(--green-dim); }
+.btn-cal-side:hover {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--green-dim);
+}
+.btn-cal-icon {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.btn-cal-label {
+  font-size: .58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  line-height: 1;
+}
 
 /* ── View toggle + ICS export ────────────────────────────────────────────── */
 .view-toggle {
