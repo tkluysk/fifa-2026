@@ -11,6 +11,14 @@ import { GROUP_G_POTENTIAL, COUNTRIES_WITH_POTENTIAL } from "./potentialMatches"
 import { buildIcs, downloadIcs } from "./icsExport";
 import "./App.css";
 
+// Derive country list from live schedule once loaded; fall back to static list
+function countriesFromMatches(matches: import("./matches").Match[]): string[] {
+  if (!matches.length) return ALL_COUNTRIES;
+  const set = new Set<string>();
+  for (const m of matches) { set.add(m.home); set.add(m.away); }
+  return Array.from(set).sort();
+}
+
 const DEFAULT_COUNTRIES = ["New Zealand", "Belgium"];
 
 export default function App() {
@@ -18,9 +26,10 @@ export default function App() {
   const [infoCountry, setInfoCountry] = useState<string | null>(null);
   const [view, setView] = useState<"list" | "calendar">("list");
   const handleInfo = useCallback((c: string) => setInfoCountry(c), []);
-  const { scores, loading: liveLoading, error: liveError } = useLiveData();
+  const { matches: allMatches, scores, loading: liveLoading, error: liveError } = useLiveData();
 
-  const matches = matchesForCountries(selected);
+  const countries = countriesFromMatches(allMatches);
+  const matches = matchesForCountries(allMatches, selected);
 
   // One set of placeholder cards per selected country that has knockout path data
   const potentialCountries = selected.filter((c) => COUNTRIES_WITH_POTENTIAL.has(c));
@@ -49,7 +58,7 @@ export default function App() {
       </header>
 
       <CountryPicker
-        countries={ALL_COUNTRIES}
+        countries={countries}
         selected={selected}
         onToggle={toggle}
         onInfo={setInfoCountry}
@@ -140,6 +149,7 @@ export default function App() {
         <CountryModal
           country={infoCountry}
           scores={scores}
+          allMatches={allMatches}
           onClose={() => setInfoCountry(null)}
         />
       )}

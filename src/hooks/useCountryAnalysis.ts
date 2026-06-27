@@ -8,7 +8,7 @@ import { useState } from "react";
 import Anthropic from "@anthropic-ai/sdk";
 import type { GroupStandings } from "./useCountryData";
 import type { LiveScore } from "./useLiveData";
-import { ALL_MATCHES } from "../matches";
+import type { Match } from "../matches";
 
 export interface AnalysisHighlight {
   type: "good" | "bad" | "neutral";
@@ -25,7 +25,8 @@ export interface Analysis {
 function buildCountryPrompt(
   country: string,
   groupStandings: GroupStandings | null,
-  scores: Record<string, LiveScore>
+  scores: Record<string, LiveScore>,
+  allMatches: Match[]
 ): string {
   const group = groupStandings?.groupName ?? "unknown group";
 
@@ -33,17 +34,12 @@ function buildCountryPrompt(
     .map((r) => `  ${r.pos}. ${r.team} — ${r.pts}pts (W${r.w} D${r.d} L${r.l}, GF${r.gf} GA${r.ga})`)
     .join("\n");
 
-  // Derive results from live scores for this country's matches
-  const countryMatches = ALL_MATCHES.filter(
-    (m) =>
-      m.home.toLowerCase() === country.toLowerCase() ||
-      m.away.toLowerCase() === country.toLowerCase() ||
-      // Handle "IR Iran" / "Iran" normalisation
-      (country === "IR Iran" && (m.home === "IR Iran" || m.away === "IR Iran"))
+  const countryMatches = allMatches.filter(
+    (m) => m.home.toLowerCase() === country.toLowerCase() || m.away.toLowerCase() === country.toLowerCase()
   );
 
   const resultsStr = countryMatches
-    .map((m) => {
+    .map((m: Match) => {
       const s = scores[m.id];
       if (!s || s.status === "scheduled") return `  ${m.home} vs ${m.away} — not yet played`;
       return `  ${m.home} ${s.home}–${s.away} ${m.away}`;
@@ -101,7 +97,8 @@ export function useCountryAnalysis() {
     subject: string,
     groupStandings: GroupStandings | null,
     scores: Record<string, LiveScore>,
-    customPrompt?: string
+    customPrompt?: string,
+    allMatches: Match[] = []
   ) {
     if (!hasKey) return;
 
@@ -114,7 +111,7 @@ export function useCountryAnalysis() {
 
       const prompt = customPrompt
         ? buildPlayerPrompt(subject, customPrompt)
-        : buildCountryPrompt(subject, groupStandings, scores);
+        : buildCountryPrompt(subject, groupStandings, scores, allMatches);
 
       const msg = await client.messages.create({
         model: "claude-haiku-4-5-20251001",

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { flag } from "../countryInfo";
 import type { LiveScore } from "../hooks/useLiveData";
+import type { Match } from "../matches";
 import { useCountryAnalysis } from "../hooks/useCountryAnalysis";
 import { useCountryData } from "../hooks/useCountryData";
 import { PlayerCard } from "./PlayerCard";
@@ -11,12 +12,13 @@ import { countryColor } from "../countryInfo";
 interface Props {
   country: string;
   scores: Record<string, LiveScore>;
+  allMatches: Match[];
   onClose: () => void;
 }
 
 const POS_ORDER: Record<string, number> = { G: 0, D: 1, M: 2, F: 3 };
 
-export function CountryModal({ country, scores, onClose }: Props) {
+export function CountryModal({ country, scores, allMatches, onClose }: Props) {
   const { data: countryMap, fetch: fetchCountryData } = useCountryData();
   const { data: analysis, loading: analysisLoading, error: analysisError, hasKey, fetchAnalysis } = useCountryAnalysis();
   const [squadView, setSquadView] = useState<"pitch" | "cards" | "table">("pitch");
@@ -33,7 +35,7 @@ export function CountryModal({ country, scores, onClose }: Props) {
   // Run AI analysis once standings are loaded
   useEffect(() => {
     if (cd && !cd.loading) {
-      fetchAnalysis(country, cd.groupStandings, scores);
+      fetchAnalysis(country, cd.groupStandings, scores, undefined, allMatches);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country, cd?.loading]);
