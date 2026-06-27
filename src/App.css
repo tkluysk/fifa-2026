@@ -891,6 +891,53 @@ body {
 
 /* AI analysis */
 .modal-analysis { }
+
+/* ── Modal results / upcoming ────────────────────────────────────────────── */
+.result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.result-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: var(--pitch-mid);
+  border: 1px solid var(--border);
+  font-size: .88rem;
+}
+.result-row--w { border-left: 3px solid var(--green); }
+.result-row--d { border-left: 3px solid var(--text-muted); }
+.result-row--l { border-left: 3px solid var(--red); }
+.result-row--upcoming { border-left: 3px solid var(--gold); opacity: .85; }
+.result-badge {
+  font-size: .7rem;
+  font-weight: 800;
+  width: 22px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.result-badge--w { color: var(--green); }
+.result-badge--d { color: var(--text-muted); }
+.result-badge--l { color: var(--red); }
+.result-badge--upcoming { color: var(--gold); }
+.result-opponent {
+  flex: 1;
+  font-weight: 600;
+}
+.result-score {
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  letter-spacing: .03em;
+}
+.result-date {
+  font-size: .75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
 .analysis-loading {
   display: flex;
   align-items: center;

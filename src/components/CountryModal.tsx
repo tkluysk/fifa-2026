@@ -66,6 +66,19 @@ export function CountryModal({ country, scores, allMatches, onClose }: Props) {
     (r) => r.team === country || (country === "IR Iran" && r.team === "Iran")
   );
 
+  // Split this country's matches into played and upcoming
+  const countryMatches = allMatches.filter(
+    (m) => m.home === country || m.away === country
+  );
+  const playedMatches = countryMatches.filter((m) => {
+    const s = scores[m.id];
+    return s && (s.status === "finished" || s.status === "in_progress");
+  });
+  const upcomingMatches = countryMatches.filter((m) => {
+    const s = scores[m.id];
+    return !s || s.status === "scheduled";
+  });
+
   // Sort roster: GK → DEF → MID → FWD, then by jersey number
   const roster = [...(cd?.roster ?? [])].sort((a, b) => {
     const pa = POS_ORDER[a.positionAbbr] ?? 9;
@@ -138,6 +151,57 @@ export function CountryModal({ country, scores, allMatches, onClose }: Props) {
         ) : cd?.error ? (
           <p className="analysis-error" style={{ marginTop: 16 }}>Failed to load standings.</p>
         ) : null}
+
+        {/* Results + Upcoming */}
+        {(playedMatches.length > 0 || upcomingMatches.length > 0) && (
+          <section className="modal-section modal-results">
+            {playedMatches.length > 0 && (
+              <>
+                <h3>Results</h3>
+                <div className="result-list">
+                  {playedMatches.map((m) => {
+                    const s = scores[m.id]!;
+                    const isHome = m.home === country;
+                    const opponent = isHome ? m.away : m.home;
+                    const goalsFor = isHome ? s.home : s.away;
+                    const goalsAgainst = isHome ? s.away : s.home;
+                    const outcome = goalsFor > goalsAgainst ? "W" : goalsFor < goalsAgainst ? "L" : "D";
+                    return (
+                      <div key={m.id} className={`result-row result-row--${outcome.toLowerCase()}`}>
+                        <span className={`result-badge result-badge--${outcome.toLowerCase()}`}>{outcome}</span>
+                        <span className="result-opponent">{flag(opponent)} {opponent}</span>
+                        <span className="result-score">{goalsFor}–{goalsAgainst}</span>
+                        {s.status === "in_progress" && <span className="live-badge" style={{fontSize:".65rem"}}>LIVE</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            {upcomingMatches.length > 0 && (
+              <>
+                <h3 style={{ marginTop: playedMatches.length > 0 ? 16 : 0 }}>Upcoming</h3>
+                <div className="result-list">
+                  {upcomingMatches.map((m) => {
+                    const opponent = m.home === country ? m.away : m.home;
+                    const nzt = new Intl.DateTimeFormat("en-NZ", {
+                      timeZone: "Pacific/Auckland",
+                      weekday: "short", day: "numeric", month: "short",
+                      hour: "numeric", minute: "2-digit", hour12: true,
+                    }).format(new Date(m.startUtc));
+                    return (
+                      <div key={m.id} className="result-row result-row--upcoming">
+                        <span className="result-badge result-badge--upcoming">vs</span>
+                        <span className="result-opponent">{flag(opponent)} {opponent}</span>
+                        <span className="result-date">{nzt} NZT</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </section>
+        )}
 
         {/* AI Analysis */}
         <section className="modal-section modal-analysis">
