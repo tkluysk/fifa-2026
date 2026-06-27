@@ -35,8 +35,44 @@ export function CountryModal({ country, standings, scores, onClose }: Props) {
     return (
       <div className="modal-backdrop" onClick={onClose}>
         <div className="modal" onClick={(e) => e.stopPropagation()}>
-          <button className="modal-close" onClick={onClose}>✕</button>
-          <p className="modal-no-data">No detailed data available for {country} yet.</p>
+          <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
+          <div className="modal-header">
+            <span className="modal-flag">{flag(country)}</span>
+            <div>
+              <h2 className="modal-title">{country}</h2>
+            </div>
+          </div>
+          <section className="modal-section modal-analysis">
+            {!hasKey ? (
+              <div className="analysis-fallback">
+                <p className="modal-no-data">Detailed group-stage data not yet available for {country}.</p>
+                <p className="analysis-key-hint">
+                  💡 Add <code>VITE_ANTHROPIC_API_KEY</code> to unlock AI-generated tournament analysis.
+                </p>
+              </div>
+            ) : loading ? (
+              <div className="analysis-loading"><span className="spinner" /> Generating analysis…</div>
+            ) : error ? (
+              <p className="analysis-error">⚠️ {error}</p>
+            ) : analysis ? (
+              <div className="analysis-content">
+                <h3>Tournament Analysis</h3>
+                <p className="analysis-summary">{analysis.summary}</p>
+                <h4>Highlights</h4>
+                <ul className="highlights-list">
+                  {analysis.highlights.map((h, i) => (
+                    <li key={i} className={`highlight-${h.type}`}>
+                      {h.type === "good" ? "✅" : h.type === "bad" ? "❌" : "⚪"} {h.text}
+                    </li>
+                  ))}
+                </ul>
+                <h4>What They Need</h4>
+                <p>{analysis.whatTheyNeed}</p>
+                <h4>Prognosis</h4>
+                <p className="analysis-prognosis">{analysis.prognosis}</p>
+              </div>
+            ) : null}
+          </section>
         </div>
       </div>
     );

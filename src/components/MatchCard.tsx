@@ -1,6 +1,6 @@
 import type { Match } from "../matches";
 import { gcalUrl, tvnzUrl } from "../matches";
-import { flag, COUNTRY_DATA } from "../countryInfo";
+import { flag, countryColor } from "../countryInfo";
 import type { LiveScore } from "../hooks/useLiveData";
 
 interface Props {
@@ -40,9 +40,6 @@ function isTracked(team: string, trackedLower: string[]): boolean {
   return trackedLower.includes(t) || (t.startsWith("ir ") && trackedLower.includes(t.slice(3)));
 }
 
-function hasInfo(team: string): boolean {
-  return team in COUNTRY_DATA;
-}
 
 export function MatchCard({ match, tracked, score, onInfo }: Props) {
   const status = matchStatus(match.startUtc, score);
@@ -50,8 +47,17 @@ export function MatchCard({ match, tracked, score, onInfo }: Props) {
   const cal = gcalUrl(match);
   const trackedLower = tracked.map((c) => c.toLowerCase());
 
+  // Build split background from both teams' colors
+  const homeColor = countryColor(match.home);
+  const awayColor = countryColor(match.away);
+  const cardStyle = {
+    background: `linear-gradient(105deg, ${homeColor.bg} 0%, ${homeColor.bg} 45%, white 50%, ${awayColor.bg} 55%, ${awayColor.bg} 100%)`,
+    borderLeft: `3px solid ${homeColor.accent}`,
+    borderRight: `3px solid ${awayColor.accent}`,
+  };
+
   return (
-    <li className={`match-card ${status}`}>
+    <li className={`match-card ${status}`} style={cardStyle}>
       <div className="match-meta">
         <span className="group-badge">Group {match.group}</span>
         {status === "live" && <span className="live-badge">LIVE</span>}
@@ -60,20 +66,14 @@ export function MatchCard({ match, tracked, score, onInfo }: Props) {
       </div>
 
       <div className="match-teams">
-        {/* Home team */}
+        {/* Home — flag · name · ⓘ, right-aligned */}
         <div className={`team home${isTracked(match.home, trackedLower) ? " tracked" : ""}`}>
           <span className="team-flag">{flag(match.home)}</span>
           <span className="team-name">{match.home}</span>
-          {hasInfo(match.home) && (
-            <button
-              className="info-btn"
-              aria-label={`Info about ${match.home}`}
-              onClick={() => onInfo(match.home)}
-            >ⓘ</button>
-          )}
+          <button className="info-btn" aria-label={`Info about ${match.home}`} onClick={() => onInfo(match.home)}>ⓘ</button>
         </div>
 
-        {/* Score or vs */}
+        {/* Centre — score or vs */}
         <div className="score-block">
           {status !== "upcoming" && score ? (
             <>
@@ -86,15 +86,9 @@ export function MatchCard({ match, tracked, score, onInfo }: Props) {
           )}
         </div>
 
-        {/* Away team */}
+        {/* Away — ⓘ · name · flag, left-aligned */}
         <div className={`team away${isTracked(match.away, trackedLower) ? " tracked" : ""}`}>
-          {hasInfo(match.away) && (
-            <button
-              className="info-btn"
-              aria-label={`Info about ${match.away}`}
-              onClick={() => onInfo(match.away)}
-            >ⓘ</button>
-          )}
+          <button className="info-btn" aria-label={`Info about ${match.away}`} onClick={() => onInfo(match.away)}>ⓘ</button>
           <span className="team-name">{match.away}</span>
           <span className="team-flag">{flag(match.away)}</span>
         </div>

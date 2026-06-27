@@ -1,4 +1,4 @@
-import { flag, COUNTRY_DATA } from "../countryInfo";
+import { flag } from "../countryInfo";
 
 interface Props {
   countries: string[];
@@ -22,15 +22,13 @@ export function CountryPicker({ countries, selected, onToggle, onInfo }: Props) 
               <span className="chip-flag">{flag(c)}</span>
               {c}
             </button>
-            {c in COUNTRY_DATA && (
-              <button
-                className="chip-info"
-                aria-label={`Info about ${c}`}
-                onClick={(e) => { e.stopPropagation(); onInfo(c); }}
-              >
-                ⓘ
-              </button>
-            )}
+            <button
+              className="chip-info"
+              aria-label={`Info about ${c}`}
+              onClick={(e) => { e.stopPropagation(); onInfo(c); }}
+            >
+              ⓘ
+            </button>
           </span>
         ))}
       </div>
