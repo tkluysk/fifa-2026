@@ -286,7 +286,10 @@ body {
   border: 2px solid var(--red) !important;
   box-shadow: 0 0 0 3px rgba(239,68,68,.15), var(--shadow);
 }
-.match-card.past { opacity: .65; }
+/* past opacity is set inline per-card; upcoming cards use full colour */
+.match-card--next {
+  box-shadow: 0 0 0 2px var(--gold), var(--shadow);
+}
 
 .match-meta {
   display: flex;
@@ -322,6 +325,16 @@ body {
   font-size: .7rem;
   font-weight: 600;
   border: 1px solid var(--border);
+}
+.next-badge {
+  background: var(--gold-dim);
+  color: var(--gold);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: .7rem;
+  font-weight: 800;
+  border: 1px solid var(--gold);
+  letter-spacing: .05em;
 }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
 
@@ -952,6 +965,10 @@ body {
   bottom: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
+  /* Clamp so the bubble never overflows the viewport edge */
+  max-width: min(260px, 90vw);
+  white-space: normal;
+  text-align: center;
   background: #0d1f12;
   color: #f0fdf4;
   border: 1px solid rgba(255,255,255,.18);
@@ -959,12 +976,19 @@ body {
   padding: 5px 9px;
   font-size: .72rem;
   font-weight: 500;
-  white-space: nowrap;
   pointer-events: none;
-  z-index: 200;
+  z-index: 9999;
   box-shadow: 0 4px 16px rgba(0,0,0,.5);
   line-height: 1.4;
 }
+/* For th elements near the right edge, anchor right instead of center */
+th.tip-host .tip-bubble {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+th.tip-host .tip-bubble::after { left: auto; right: 8px; transform: none; }
+th.tip-host .tip-bubble::before { left: auto; right: 9px; transform: none; }
 .tip-bubble::after {
   content: "";
   position: absolute;

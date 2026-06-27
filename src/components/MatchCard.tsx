@@ -8,6 +8,7 @@ interface Props {
   tracked: string[];
   score?: LiveScore;
   onInfo: (country: string) => void;
+  isNext?: boolean;
 }
 
 const NZT = "Pacific/Auckland";
@@ -41,7 +42,7 @@ function isTracked(team: string, trackedLower: string[]): boolean {
 }
 
 
-export function MatchCard({ match, tracked, score, onInfo }: Props) {
+export function MatchCard({ match, tracked, score, onInfo, isNext }: Props) {
   const status = matchStatus(match.startUtc, score);
   const stream = tvnzUrl(match);
   const cal = gcalUrl(match);
@@ -49,17 +50,21 @@ export function MatchCard({ match, tracked, score, onInfo }: Props) {
 
   const homeColor = countryColor(match.home);
   const awayColor = countryColor(match.away);
+  // Past matches use a dimmed version of the colour so they stay faded
+  const opacity = status === "past" ? 0.5 : 1;
   const cardStyle = {
     background: `linear-gradient(105deg, ${homeColor.bg} 0%, ${homeColor.bg} 45%, var(--surface) 50%, ${awayColor.bg} 55%, ${awayColor.bg} 100%)`,
     borderLeft: `3px solid ${homeColor.accent}`,
     borderRight: `3px solid ${awayColor.accent}`,
+    opacity,
   };
 
   return (
-    <li className={`match-card ${status}`} style={cardStyle}>
+    <li className={`match-card ${status}${isNext ? " match-card--next" : ""}`} style={cardStyle}>
       {/* Meta row */}
       <div className="match-meta">
         <span className="group-badge">Group {match.group}</span>
+        {isNext && <span className="next-badge">NEXT</span>}
         {status === "live" && <span className="live-badge">LIVE</span>}
         {status === "past" && <span className="past-badge">FT</span>}
         <span>{formatNZT(match.startUtc)} NZT</span>

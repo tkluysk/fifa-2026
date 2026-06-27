@@ -45,7 +45,15 @@ export function CountryModal({ country, scores, onClose }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const standings = cd?.groupStandings;
+  // Sort by points desc, then GD desc, then GF desc
+  const standings = cd?.groupStandings
+    ? {
+        ...cd.groupStandings,
+        rows: [...cd.groupStandings.rows].sort((a, b) =>
+          b.pts - a.pts || b.gd - a.gd || b.gf - a.gf
+        ).map((r, i) => ({ ...r, pos: i + 1 })),
+      }
+    : null;
   const myRow = standings?.rows.find(
     (r) => r.team === country || (country === "IR Iran" && r.team === "Iran")
   );

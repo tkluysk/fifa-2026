@@ -86,15 +86,27 @@ export default function App() {
           />
         ) : (
           <ul className="match-list">
-            {matches.map((m) => (
-              <MatchCard
-                key={m.id}
-                match={m}
-                tracked={selected}
-                score={scores[m.id]}
-                onInfo={setInfoCountry}
-              />
-            ))}
+            {(() => {
+              const now = Date.now();
+              // Find indices of the two soonest upcoming/not-yet-started matches
+              const upcomingIndices = matches
+                .map((m, i) => ({ i, t: new Date(m.startUtc).getTime() }))
+                .filter(({ t }) => t > now)
+                .sort((a, b) => a.t - b.t)
+                .slice(0, 2)
+                .map(({ i }) => i);
+              const nextSet = new Set(upcomingIndices);
+              return matches.map((m, i) => (
+                <MatchCard
+                  key={m.id}
+                  match={m}
+                  tracked={selected}
+                  score={scores[m.id]}
+                  onInfo={setInfoCountry}
+                  isNext={nextSet.has(i)}
+                />
+              ));
+            })()}
 
             {potentialCountries.map((country) => (
               <li key={`potential-section-${country}`} className="potential-section">
