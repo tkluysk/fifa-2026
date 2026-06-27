@@ -24,7 +24,8 @@ export interface LiveData {
 const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard";
 // Covers all of group stage + buffer
 const DATE_RANGE = "20260612-20260703";
-const POLL_INTERVAL_MS = 5 * 60 * 1000;
+const POLL_INTERVAL_LIVE_MS = 60 * 1000;      // 1 min while a game is live
+const POLL_INTERVAL_IDLE_MS = 5 * 60 * 1000;  // 5 min otherwise
 
 function parseGroup(altGameNote: string): string {
   // "FIFA World Cup, Group G" → "G"
@@ -107,6 +108,7 @@ export function useLiveData(): LiveData {
       if (!background) setLoading(true);
       setError(null);
 
+      let fetchedScores: Record<string, LiveScore> = {};
       try {
         const res = await fetch(`${ESPN_BASE}?dates=${DATE_RANGE}&limit=200`);
         if (!res.ok) throw new Error(`ESPN ${res.status}`);
@@ -114,10 +116,11 @@ export function useLiveData(): LiveData {
         if (cancelled) return;
 
         const events = (json.events ?? []) as unknown[];
-        const { matches: fetched, scores: fetchedScores } = parseSchedule(events);
+        const { matches: fetched, scores: parsed } = parseSchedule(events);
+        fetchedScores = parsed;
 
         setMatches(fetched);
-        setScores(fetchedScores);
+        setScores(parsed);
       } catch (err) {
         if (!cancelled) setError(`Live data unavailable: ${err}`);
       } finally {
@@ -125,8 +128,9 @@ export function useLiveData(): LiveData {
       }
 
       if (!cancelled) {
-        const hasLive = Object.values(scores).some((s) => s.status === "in_progress");
-        if (hasLive) timerId = setTimeout(() => fetchAll(true), POLL_INTERVAL_MS);
+        const hasLive = Object.values(fetchedScores).some((s) => s.status === "in_progress");
+        const delay = hasLive ? POLL_INTERVAL_LIVE_MS : POLL_INTERVAL_IDLE_MS;
+        timerId = setTimeout(() => fetchAll(true), delay);
       }
     }
 
