@@ -928,10 +928,30 @@ body {
   font-weight: 600;
 }
 .result-score {
+  display: flex;
+  align-items: center;
+  gap: 3px;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
-  color: var(--text);
   letter-spacing: .03em;
+}
+.result-score-us   { color: var(--text); min-width: 1ch; text-align: right; }
+.result-score-sep  { color: var(--text-muted); font-weight: 300; }
+.result-score-them { color: var(--text-muted); min-width: 1ch; }
+/* Label rows so it's clear which number is ours */
+.result-row::before {
+  display: none; /* labels via column headers instead */
+}
+.result-list-header {
+  display: flex;
+  justify-content: flex-end;
+  font-size: .65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-muted);
+  padding: 0 10px 4px;
+  gap: 18px;
 }
 .result-date {
   font-size: .75rem;

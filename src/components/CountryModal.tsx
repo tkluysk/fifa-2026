@@ -158,6 +158,10 @@ export function CountryModal({ country, scores, allMatches, onClose }: Props) {
             {playedMatches.length > 0 && (
               <>
                 <h3>Results</h3>
+                <div className="result-list-header">
+                  <span>{country}</span>
+                  <span>Opp</span>
+                </div>
                 <div className="result-list">
                   {playedMatches.map((m) => {
                     const s = scores[m.id]!;
@@ -170,7 +174,11 @@ export function CountryModal({ country, scores, allMatches, onClose }: Props) {
                       <div key={m.id} className={`result-row result-row--${outcome.toLowerCase()}`}>
                         <span className={`result-badge result-badge--${outcome.toLowerCase()}`}>{outcome}</span>
                         <span className="result-opponent">{flag(opponent)} {opponent}</span>
-                        <span className="result-score">{goalsFor}–{goalsAgainst}</span>
+                        <span className="result-score">
+                          <span className="result-score-us">{goalsFor}</span>
+                          <span className="result-score-sep">–</span>
+                          <span className="result-score-them">{goalsAgainst}</span>
+                        </span>
                         {s.status === "in_progress" && <span className="live-badge" style={{fontSize:".65rem"}}>LIVE</span>}
                       </div>
                     );
