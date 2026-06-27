@@ -8,6 +8,7 @@ import { CountryModal } from "./components/CountryModal";
 import { TournamentPath } from "./components/TournamentPath";
 import { useLiveData } from "./hooks/useLiveData";
 import { GROUP_G_POTENTIAL, COUNTRIES_WITH_POTENTIAL } from "./potentialMatches";
+import { buildIcs, downloadIcs } from "./icsExport";
 import "./App.css";
 
 const DEFAULT_COUNTRIES = ["New Zealand", "Belgium"];
@@ -23,6 +24,11 @@ export default function App() {
 
   // One set of placeholder cards per selected country that has knockout path data
   const potentialCountries = selected.filter((c) => COUNTRIES_WITH_POTENTIAL.has(c));
+
+  function handleIcsDownload() {
+    const ics = buildIcs(matches, potentialCountries, GROUP_G_POTENTIAL);
+    downloadIcs("fifa-2026.ics", ics);
+  }
 
   function toggle(country: string) {
     setSelected((prev) =>
@@ -55,6 +61,9 @@ export default function App() {
       <div className="view-toggle">
         <button className={`view-btn${view === "list" ? " view-btn--active" : ""}`} onClick={() => setView("list")}>≡ List</button>
         <button className={`view-btn${view === "calendar" ? " view-btn--active" : ""}`} onClick={() => setView("calendar")}>📅 Calendar</button>
+        <button className="view-btn view-btn--ics" onClick={handleIcsDownload} disabled={matches.length === 0} title="Download as .ics — import into Google Cal, Apple Cal or Outlook to replace all entries">
+          ⬇ Export to Calendar
+        </button>
       </div>
 
       <main className="main">
