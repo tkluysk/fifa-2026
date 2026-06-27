@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import type { Player } from "../hooks/useCountryData";
 import { useCountryAnalysis } from "../hooks/useCountryAnalysis";
 import { useWikipediaPhoto } from "../hooks/useWikipediaPhoto";
+import { Tip } from "./Tip";
 
 interface Props {
   player: Player;
@@ -74,20 +75,20 @@ export function PlayerCard({ player, accentColor, compact }: Props) {
         </div>
 
         <div className="player-stats">
-          <Stat label="Apps" value={player.apps} tooltip="Appearances" />
+          <Stat label="Apps" value={player.apps} tooltip="Appearances in this tournament" />
           {player.positionAbbr === "G" ? (
             <>
-              <Stat label="Saves" value={player.saves ?? 0} tooltip="Saves" />
-              <Stat label="GA" value={player.goalsConceded ?? 0} tooltip="Goals Against" />
+              <Stat label="Sv" value={player.saves ?? 0} tooltip="Saves made in this tournament" />
+              <Stat label="GA" value={player.goalsConceded ?? 0} tooltip="Goals conceded in this tournament" />
             </>
           ) : (
             <>
-              <Stat label="G" value={player.goals} tooltip="Goals" />
-              <Stat label="A" value={player.assists} tooltip="Assists" />
+              <Stat label="G" value={player.goals} tooltip="Goals scored in this tournament" />
+              <Stat label="A" value={player.assists} tooltip="Goal assists in this tournament" />
             </>
           )}
-          {player.yellowCards > 0 && <Stat label="YC" value={player.yellowCards} tooltip="Yellow Cards" warn />}
-          {player.redCards > 0 && <Stat label="RC" value={player.redCards} tooltip="Red Cards" danger />}
+          {player.yellowCards > 0 && <Stat label="YC" value={player.yellowCards} tooltip="Yellow cards — two yellows = one-match ban" warn />}
+          {player.redCards > 0 && <Stat label="RC" value={player.redCards} tooltip="Red cards — automatic one-match suspension" danger />}
         </div>
 
         {showBio && (
@@ -102,14 +103,12 @@ function Stat({ label, value, tooltip, warn, danger }: {
   label: string; value: number; tooltip?: string; warn?: boolean; danger?: boolean;
 }) {
   return (
-    <span
-      className={`pstat${warn ? " pstat--warn" : ""}${danger ? " pstat--danger" : ""}`}
-      title={tooltip ?? label}
-      style={{ cursor: "help" }}
-    >
-      <span className="pstat-val">{value}</span>
-      <span className="pstat-label">{label}</span>
-    </span>
+    <Tip text={tooltip ?? label}>
+      <span className={`pstat${warn ? " pstat--warn" : ""}${danger ? " pstat--danger" : ""}`}>
+        <span className="pstat-val">{value}</span>
+        <span className="pstat-label">{label}</span>
+      </span>
+    </Tip>
   );
 }
 

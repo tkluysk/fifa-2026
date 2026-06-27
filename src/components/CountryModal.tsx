@@ -5,6 +5,7 @@ import { useCountryAnalysis } from "../hooks/useCountryAnalysis";
 import { useCountryData } from "../hooks/useCountryData";
 import { PlayerCard } from "./PlayerCard";
 import { PitchView } from "./PitchView";
+import { Tip } from "./Tip";
 import { countryColor } from "../countryInfo";
 
 interface Props {
@@ -87,16 +88,16 @@ export function CountryModal({ country, scores, onClose }: Props) {
             <table className="standings-table">
               <thead>
                 <tr>
-                  <th title="Position">#</th>
-                  <th>Team</th>
-                  <th title="Played">P</th>
-                  <th title="Won">W</th>
-                  <th title="Drawn">D</th>
-                  <th title="Lost">L</th>
-                  <th title="Goals For">GF</th>
-                  <th title="Goals Against">GA</th>
-                  <th title="Goal Difference">GD</th>
-                  <th title="Points">Pts</th>
+                  <Tip as="th" text="Position in the group">#</Tip>
+                  <th style={{ textAlign: "left" }}>Team</th>
+                  <Tip as="th" text="Games played so far">P</Tip>
+                  <Tip as="th" text="Matches won — 3 points each">W</Tip>
+                  <Tip as="th" text="Matches drawn — 1 point each">D</Tip>
+                  <Tip as="th" text="Matches lost — 0 points">L</Tip>
+                  <Tip as="th" text="Goals scored by this team">GF</Tip>
+                  <Tip as="th" text="Goals conceded by this team">GA</Tip>
+                  <Tip as="th" text="Goals scored minus goals conceded — used as tiebreaker">GD</Tip>
+                  <Tip as="th" text="Total points — top 2 teams advance automatically">Pts</Tip>
                 </tr>
               </thead>
               <tbody>
@@ -181,18 +182,18 @@ export function CountryModal({ country, scores, onClose }: Props) {
               <table className="squad-table">
                 <thead>
                   <tr>
-                    <th title="Jersey">#</th>
-                    <th title="Position">Pos</th>
+                    <Tip as="th" text="Jersey number">#</Tip>
+                    <Tip as="th" text="Position — GK Goalkeeper · D Defender · M Midfielder · F Forward">Pos</Tip>
                     <th style={{ textAlign: "left" }}>Name</th>
-                    <th title="Club">Club</th>
-                    <th title="Age">Age</th>
-                    <th title="Appearances">Apps</th>
-                    <th title="Goals">G</th>
-                    <th title="Assists">A</th>
-                    <th title="Saves (GK)">Sv</th>
-                    <th title="Goals Against (GK)">GA</th>
-                    <th title="Yellow Cards">YC</th>
-                    <th title="Red Cards">RC</th>
+                    <th style={{ textAlign: "left" }}>Club</th>
+                    <Tip as="th" text="Player's age">Age</Tip>
+                    <Tip as="th" text="Appearances in this tournament">Apps</Tip>
+                    <Tip as="th" text="Goals scored in this tournament (outfield players)">G</Tip>
+                    <Tip as="th" text="Goal assists in this tournament (outfield players)">A</Tip>
+                    <Tip as="th" text="Saves made in this tournament (goalkeepers only)">Sv</Tip>
+                    <Tip as="th" text="Goals conceded in this tournament (goalkeepers only)">GA</Tip>
+                    <Tip as="th" text="Yellow cards received — two yellows = red card suspension">YC</Tip>
+                    <Tip as="th" text="Red cards received — automatic one-match suspension">RC</Tip>
                   </tr>
                 </thead>
                 <tbody>
