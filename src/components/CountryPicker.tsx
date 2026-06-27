@@ -26,9 +26,7 @@ export function CountryPicker({ countries, selected, onToggle, onInfo }: Props) 
               className="chip-info"
               aria-label={`Info about ${c}`}
               onClick={(e) => { e.stopPropagation(); onInfo(c); }}
-            >
-              ⓘ
-            </button>
+            />
           </span>
         ))}
       </div>

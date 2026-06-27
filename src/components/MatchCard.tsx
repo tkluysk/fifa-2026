@@ -70,7 +70,7 @@ export function MatchCard({ match, tracked, score, onInfo }: Props) {
         <div className={`team home${isTracked(match.home, trackedLower) ? " tracked" : ""}`}>
           <span className="team-flag">{flag(match.home)}</span>
           <span className="team-name">{match.home}</span>
-          <button className="info-btn" aria-label={`Info about ${match.home}`} onClick={() => onInfo(match.home)}>ⓘ</button>
+          <button className="info-btn" aria-label={`Info about ${match.home}`} onClick={() => onInfo(match.home)} />
         </div>
 
         {/* Centre — score or vs */}
@@ -88,7 +88,7 @@ export function MatchCard({ match, tracked, score, onInfo }: Props) {
 
         {/* Away — ⓘ · name · flag, left-aligned */}
         <div className={`team away${isTracked(match.away, trackedLower) ? " tracked" : ""}`}>
-          <button className="info-btn" aria-label={`Info about ${match.away}`} onClick={() => onInfo(match.away)}>ⓘ</button>
+          <button className="info-btn" aria-label={`Info about ${match.away}`} onClick={() => onInfo(match.away)} />
           <span className="team-name">{match.away}</span>
           <span className="team-flag">{flag(match.away)}</span>
         </div>
