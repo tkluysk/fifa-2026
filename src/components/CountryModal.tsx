@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { flag } from "../countryInfo";
 import type { LiveScore } from "../hooks/useLiveData";
 import { useCountryAnalysis } from "../hooks/useCountryAnalysis";
@@ -17,6 +17,7 @@ const POS_ORDER: Record<string, number> = { G: 0, D: 1, M: 2, F: 3 };
 export function CountryModal({ country, scores, onClose }: Props) {
   const { data: countryMap, fetch: fetchCountryData } = useCountryData();
   const { data: analysis, loading: analysisLoading, error: analysisError, hasKey, fetchAnalysis } = useCountryAnalysis();
+  const [squadView, setSquadView] = useState<"cards" | "table">("cards");
 
   const cd = countryMap[country];
   const accent = countryColor(country).accent;
@@ -158,12 +159,69 @@ export function CountryModal({ country, scores, onClose }: Props) {
         {/* Squad */}
         {roster.length > 0 && (
           <section className="modal-section">
-            <h3>Squad ({roster.length})</h3>
-            <div className="squad-grid">
-              {roster.map((p) => (
-                <PlayerCard key={p.id} player={p} accentColor={accent} />
-              ))}
+            <div className="squad-header">
+              <h3>Squad ({roster.length})</h3>
+              <div className="squad-view-toggle">
+                <button
+                  className={`squad-view-btn${squadView === "cards" ? " squad-view-btn--active" : ""}`}
+                  onClick={() => setSquadView("cards")}
+                >Cards</button>
+                <button
+                  className={`squad-view-btn${squadView === "table" ? " squad-view-btn--active" : ""}`}
+                  onClick={() => setSquadView("table")}
+                >Table</button>
+              </div>
             </div>
+
+            {squadView === "cards" ? (
+              <div className="squad-grid">
+                {roster.map((p) => (
+                  <PlayerCard key={p.id} player={p} accentColor={accent} />
+                ))}
+              </div>
+            ) : (
+              <table className="squad-table">
+                <thead>
+                  <tr>
+                    <th title="Jersey">#</th>
+                    <th title="Position">Pos</th>
+                    <th style={{ textAlign: "left" }}>Name</th>
+                    <th title="Club">Club</th>
+                    <th title="Age">Age</th>
+                    <th title="Appearances">Apps</th>
+                    <th title="Goals">G</th>
+                    <th title="Assists">A</th>
+                    <th title="Saves (GK)">Sv</th>
+                    <th title="Goals Against (GK)">GA</th>
+                    <th title="Yellow Cards">YC</th>
+                    <th title="Red Cards">RC</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {roster.map((p) => (
+                    <tr key={p.id} className={p.status === "out" ? "squad-row--out" : ""}>
+                      <td className="squad-td-jersey">{p.jersey}</td>
+                      <td className="squad-td-pos" title={p.position}>{p.positionAbbr}</td>
+                      <td className="squad-td-name">
+                        {p.name}
+                        {p.status === "injured" && <span title={p.injuryNote}> 🤕</span>}
+                        {p.status === "suspended" && <span title="Suspended"> 🟥</span>}
+                        {p.status === "out" && <span title={p.injuryNote || "Out"}> ❌</span>}
+                      </td>
+                      <td className="squad-td-club">{p.clubTeam}</td>
+                      <td>{p.age || "—"}</td>
+                      <td>{p.apps}</td>
+                      <td>{p.positionAbbr !== "G" ? p.goals : "—"}</td>
+                      <td>{p.positionAbbr !== "G" ? p.assists : "—"}</td>
+                      <td>{p.positionAbbr === "G" ? (p.saves ?? 0) : "—"}</td>
+                      <td>{p.positionAbbr === "G" ? (p.goalsConceded ?? 0) : "—"}</td>
+                      <td className={p.yellowCards > 0 ? "squad-td-warn" : ""}>{p.yellowCards || "—"}</td>
+                      <td className={p.redCards > 0 ? "squad-td-danger" : ""}>{p.redCards || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </section>
         )}
       </div>

@@ -45,10 +45,10 @@ export function PlayerCard({ player, accentColor }: Props) {
         </div>
 
         <div className="player-stats">
-          <Stat label="Apps" value={player.apps} />
+          <Stat label="Apps" value={player.apps} tooltip="Appearances" />
           {player.positionAbbr === "G" ? (
             <>
-              <Stat label="Saves" value={player.saves ?? 0} />
+              <Stat label="Saves" value={player.saves ?? 0} tooltip="Saves" />
               <Stat label="GA" value={player.goalsConceded ?? 0} tooltip="Goals Against" />
             </>
           ) : (
@@ -73,8 +73,8 @@ function Stat({ label, value, tooltip, warn, danger }: { label: string; value: n
   return (
     <span
       className={`pstat${warn ? " pstat--warn" : ""}${danger ? " pstat--danger" : ""}`}
-      title={tooltip}
-      style={tooltip ? { cursor: "help" } : undefined}
+      title={tooltip ?? label}
+      style={{ cursor: "help" }}
     >
       <span className="pstat-val">{value}</span>
       <span className="pstat-label">{label}</span>
