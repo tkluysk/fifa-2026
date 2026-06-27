@@ -4,6 +4,7 @@ import type { LiveScore } from "../hooks/useLiveData";
 import { useCountryAnalysis } from "../hooks/useCountryAnalysis";
 import { useCountryData } from "../hooks/useCountryData";
 import { PlayerCard } from "./PlayerCard";
+import { PitchView } from "./PitchView";
 import { countryColor } from "../countryInfo";
 
 interface Props {
@@ -17,7 +18,7 @@ const POS_ORDER: Record<string, number> = { G: 0, D: 1, M: 2, F: 3 };
 export function CountryModal({ country, scores, onClose }: Props) {
   const { data: countryMap, fetch: fetchCountryData } = useCountryData();
   const { data: analysis, loading: analysisLoading, error: analysisError, hasKey, fetchAnalysis } = useCountryAnalysis();
-  const [squadView, setSquadView] = useState<"cards" | "table">("cards");
+  const [squadView, setSquadView] = useState<"pitch" | "cards" | "table">("pitch");
 
   const cd = countryMap[country];
   const accent = countryColor(country).accent;
@@ -162,18 +163,15 @@ export function CountryModal({ country, scores, onClose }: Props) {
             <div className="squad-header">
               <h3>Squad ({roster.length})</h3>
               <div className="squad-view-toggle">
-                <button
-                  className={`squad-view-btn${squadView === "cards" ? " squad-view-btn--active" : ""}`}
-                  onClick={() => setSquadView("cards")}
-                >Cards</button>
-                <button
-                  className={`squad-view-btn${squadView === "table" ? " squad-view-btn--active" : ""}`}
-                  onClick={() => setSquadView("table")}
-                >Table</button>
+                <button className={`squad-view-btn${squadView === "pitch" ? " squad-view-btn--active" : ""}`} onClick={() => setSquadView("pitch")}>⚽ Pitch</button>
+                <button className={`squad-view-btn${squadView === "cards" ? " squad-view-btn--active" : ""}`} onClick={() => setSquadView("cards")}>Cards</button>
+                <button className={`squad-view-btn${squadView === "table" ? " squad-view-btn--active" : ""}`} onClick={() => setSquadView("table")}>Table</button>
               </div>
             </div>
 
-            {squadView === "cards" ? (
+            {squadView === "pitch" ? (
+              <PitchView roster={roster} accentColor={accent} />
+            ) : squadView === "cards" ? (
               <div className="squad-grid">
                 {roster.map((p) => (
                   <PlayerCard key={p.id} player={p} accentColor={accent} />

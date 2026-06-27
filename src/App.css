@@ -1026,6 +1026,146 @@ body {
 .squad-td-danger { color: var(--red) !important; font-weight: 700; }
 .squad-row--out td { opacity: .45; }
 
+/* ── Pitch view ──────────────────────────────────────────────────────────── */
+.pitch-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.pitch-field {
+  position: relative;
+  background: linear-gradient(180deg,
+    #1a5c2a 0%, #1e6b30 16.6%,
+    #175224 16.6%, #1a5c2a 33.2%,
+    #1e6b30 33.2%, #175224 49.8%,
+    #1a5c2a 49.8%, #1e6b30 66.4%,
+    #175224 66.4%, #1a5c2a 83%,
+    #1e6b30 83%, #175224 100%
+  );
+  border-radius: 8px;
+  border: 2px solid rgba(255,255,255,.15);
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column-reverse; /* GK at bottom, FWD at top */
+  gap: 6px;
+  min-height: 340px;
+  overflow: hidden;
+}
+
+/* Pitch markings */
+.pitch-halfway {
+  position: absolute;
+  left: 0; right: 0;
+  top: 50%;
+  height: 1px;
+  background: rgba(255,255,255,.2);
+}
+.pitch-centre-circle {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.2);
+  pointer-events: none;
+}
+.pitch-penalty-top {
+  position: absolute;
+  top: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 55%; height: 60px;
+  border: 1px solid rgba(255,255,255,.15);
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+}
+.pitch-penalty-bot {
+  position: absolute;
+  bottom: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 55%; height: 60px;
+  border: 1px solid rgba(255,255,255,.15);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+}
+
+.pitch-row {
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+/* Pitch player token */
+.pitch-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: default;
+}
+.pitch-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 2px solid;
+  overflow: hidden;
+  background: rgba(0,0,0,.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.pitch-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+.pitch-jersey {
+  font-size: .9rem;
+  font-weight: 900;
+  line-height: 1;
+}
+.pitch-name {
+  font-size: .6rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,.8);
+  white-space: nowrap;
+  max-width: 56px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+.pitch-goals {
+  font-size: .55rem;
+  color: var(--gold);
+  font-weight: 700;
+}
+
+/* Bench strip */
+.pitch-bench {
+  background: var(--pitch-mid);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.pitch-bench-label {
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 6px;
+}
+.pitch-bench-players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* ── Player card ─────────────────────────────────────────────────────────── */
 .player-card {
   display: flex;
@@ -1053,6 +1193,13 @@ body {
   justify-content: center;
   gap: 0;
   background: var(--surface);
+}
+.player-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: 50%;
 }
 .player-jersey {
   font-size: .95rem;

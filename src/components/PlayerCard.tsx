@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import type { Player } from "../hooks/useCountryData";
 import { useCountryAnalysis } from "../hooks/useCountryAnalysis";
+import { useWikipediaPhoto } from "../hooks/useWikipediaPhoto";
 
 interface Props {
   player: Player;
   accentColor: string;
+  compact?: boolean; // used on the pitch view
 }
 
 const POS_COLORS: Record<string, string> = {
@@ -14,16 +16,43 @@ const POS_COLORS: Record<string, string> = {
   F: "#ef4444",
 };
 
-export function PlayerCard({ player, accentColor }: Props) {
+export function PlayerCard({ player, accentColor, compact }: Props) {
   const [showBio, setShowBio] = useState(false);
   const posColor = POS_COLORS[player.positionAbbr] ?? "#86a98e";
+  const photo = useWikipediaPhoto(player.name);
+
+  if (compact) {
+    return (
+      <div className="pitch-player" title={player.name}>
+        <div className="pitch-avatar" style={{ borderColor: posColor }}>
+          {photo
+            ? <img src={photo} alt={player.name} className="pitch-photo" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+            : <span className="pitch-jersey" style={{ color: posColor }}>{player.jersey}</span>
+          }
+        </div>
+        <span className="pitch-name">{player.shortName ?? player.name.split(" ").pop()}</span>
+        {player.goals > 0 && <span className="pitch-goals">⚽×{player.goals}</span>}
+      </div>
+    );
+  }
 
   return (
     <div className={`player-card${player.status === "out" ? " player-card--out" : ""}`}>
-      {/* Jersey avatar */}
+      {/* Avatar: photo or jersey number */}
       <div className="player-avatar" style={{ borderColor: posColor }}>
-        <span className="player-jersey" style={{ color: posColor }}>{player.jersey}</span>
-        <span className="player-pos-abbr" style={{ color: posColor }}>{player.positionAbbr}</span>
+        {photo ? (
+          <img
+            src={photo}
+            alt={player.name}
+            className="player-photo"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
+        ) : (
+          <>
+            <span className="player-jersey" style={{ color: posColor }}>{player.jersey}</span>
+            <span className="player-pos-abbr" style={{ color: posColor }}>{player.positionAbbr}</span>
+          </>
+        )}
       </div>
 
       <div className="player-info">
@@ -34,9 +63,9 @@ export function PlayerCard({ player, accentColor }: Props) {
             aria-label={`AI profile for ${player.name}`}
             onClick={() => setShowBio((v) => !v)}
           />
-          {player.status === "injured" && <span className="player-badge player-badge--injury" title={player.injuryNote}>🤕</span>}
-          {player.status === "suspended" && <span className="player-badge player-badge--suspended" title="Suspended">🟥</span>}
-          {player.status === "out" && <span className="player-badge player-badge--out" title={player.injuryNote || "Out"}>❌</span>}
+          {player.status === "injured" && <span className="player-badge" title={player.injuryNote}>🤕</span>}
+          {player.status === "suspended" && <span className="player-badge" title="Suspended">🟥</span>}
+          {player.status === "out" && <span className="player-badge" title={player.injuryNote || "Out"}>❌</span>}
         </div>
 
         <div className="player-meta">
@@ -69,7 +98,9 @@ export function PlayerCard({ player, accentColor }: Props) {
   );
 }
 
-function Stat({ label, value, tooltip, warn, danger }: { label: string; value: number; tooltip?: string; warn?: boolean; danger?: boolean }) {
+function Stat({ label, value, tooltip, warn, danger }: {
+  label: string; value: number; tooltip?: string; warn?: boolean; danger?: boolean;
+}) {
   return (
     <span
       className={`pstat${warn ? " pstat--warn" : ""}${danger ? " pstat--danger" : ""}`}
