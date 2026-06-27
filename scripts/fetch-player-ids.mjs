@@ -1,0 +1,186 @@
+/**
+ * Fetches current squad player IDs from API-Football and writes
+ * src/playerPhotos.ts — a static name→photoURL map used at runtime.
+ *
+ * Run once: node scripts/fetch-player-ids.mjs
+ * Requires API_FOOTBALL_KEY in .env.local
+ *
+ * /players/squads?team={id} returns the CURRENT squad (no season needed).
+ * Photo URLs are stable CDN links: https://media.api-sports.io/football/players/{id}.png
+ */
+
+import { readFileSync, writeFileSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __dir = dirname(fileURLToPath(import.meta.url));
+const root = join(__dir, "..");
+
+// Load .env.local
+const env = readFileSync(join(root, ".env.local"), "utf8");
+const keyMatch = env.match(/API_FOOTBALL_KEY=(.+)/);
+if (!keyMatch) { console.error("API_FOOTBALL_KEY not found in .env.local"); process.exit(1); }
+const API_KEY = keyMatch[1].trim();
+
+const BASE = "https://v3.football.api-sports.io";
+const HEADERS = { "x-apisports-key": API_KEY };
+
+// API-Football team ID → our app team name
+// IDs sourced from /teams?league=1&season=2022 plus direct searches
+const TEAMS = {
+  // Group A
+  16:   "Mexico",
+  20:   "Australia",    // also in D — but only one entry needed
+  // actually let's do all 48 WC 2026 teams:
+  // From 2022 WC (same IDs, current squads):
+  26:   "Argentina",
+  1:    "Belgium",
+  6:    "Brazil",
+  1530: "Cameroon",
+  5529: "Canada",
+  3:    "Croatia",
+  21:   "Denmark",
+  2382: "Ecuador",
+  10:   "England",
+  2:    "France",
+  25:   "Germany",
+  22:   "IR Iran",
+  12:   "Japan",
+  1118: "Netherlands",
+  27:   "Portugal",
+  23:   "Saudi Arabia",
+  13:   "Senegal",
+  14:   "Serbia",
+  17:   "Korea Republic",
+  9:    "Spain",
+  15:   "Switzerland",
+  28:   "Tunisia",
+  2384: "USA",
+  7:    "Uruguay",
+
+  // 2026-only / searched directly:
+  4673: "New Zealand",
+  3299: "Egypt",
+  56:   "Scotland",
+  11:   "Paraguay",
+  630:  "Sweden",
+  747:  "Türkiye",
+  6301: "Uzbekistan",
+  1774: "Albania",
+  38:   "Nigeria",
+  8:    "Chile",
+  32:   "Colombia",
+  1546: "Angola",
+  85:   "Panama",
+  4691: "Cape Verde",
+  572:  "Bosnia-Herzegovina",
+  4861: "Curaçao",
+  514:  "Haiti",
+  514:  "Haiti",
+  1569: "Qatar",
+  31:   "Morocco",
+  1504: "Ghana",  // not WC 2026 but might be useful
+  735:  "Ivory Coast",
+  20:   "Australia",
+  24:   "Poland",  // not WC 2026
+  1504: "Ghana",
+};
+
+// Deduplicate (some IDs might overlap)
+const UNIQUE_TEAMS = {};
+for (const [id, name] of Object.entries(TEAMS)) {
+  UNIQUE_TEAMS[id] = name;
+}
+
+async function apiFetch(path) {
+  const url = `${BASE}${path}`;
+  const res = await fetch(url, { headers: HEADERS });
+  if (!res.ok) throw new Error(`${res.status} for ${url}`);
+  const json = await res.json();
+  if (json.errors && Object.keys(json.errors).length > 0) {
+    const msg = JSON.stringify(json.errors);
+    if (msg.includes("rateLimit")) throw new Error("RATE_LIMIT");
+    throw new Error(`API error: ${msg}`);
+  }
+  return json;
+}
+
+async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function fetchWithRetry(path, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await apiFetch(path);
+    } catch (e) {
+      if (e.message === "RATE_LIMIT" && i < retries - 1) {
+        console.log("  Rate limited, waiting 15s…");
+        await sleep(15000);
+      } else throw e;
+    }
+  }
+}
+
+async function main() {
+  // Check remaining requests
+  const status = await apiFetch("/status");
+  const { current, limit_day } = status.response.requests;
+  console.log(`API requests used today: ${current}/${limit_day}`);
+  const remaining = limit_day - current;
+  const needed = Object.keys(UNIQUE_TEAMS).length;
+  console.log(`Teams to fetch: ${needed}, remaining quota: ${remaining}`);
+  if (remaining < needed + 2) {
+    console.warn(`⚠ Low quota! Only ${remaining} requests left, need ~${needed + 2}. Proceeding anyway…`);
+  }
+
+  const playerMap = {}; // name → photo URL
+  let fetched = 0;
+  let failed = 0;
+
+  for (const [teamId, teamName] of Object.entries(UNIQUE_TEAMS)) {
+    process.stdout.write(`  [${++fetched}/${needed}] ${teamName} (${teamId})… `);
+    try {
+      const json = await fetchWithRetry(`/players/squads?team=${teamId}`);
+      let count = 0;
+      for (const block of json.response ?? []) {
+        for (const p of block.players ?? []) {
+          if (p.name && p.photo) {
+            playerMap[p.name] = p.photo;
+            count++;
+          }
+        }
+      }
+      console.log(`${count} players`);
+    } catch (e) {
+      console.log(`FAILED: ${e.message}`);
+      failed++;
+    }
+    await sleep(2000); // 1 req/2s — well under per-minute limit on free plan
+  }
+
+  const total = Object.keys(playerMap).length;
+  console.log(`\nTotal unique players: ${total} (${failed} teams failed)`);
+
+  // Generate TypeScript file
+  const entries = Object.entries(playerMap).sort(([a], [b]) => a.localeCompare(b));
+  const lines = [
+    "// Auto-generated by scripts/fetch-player-ids.mjs — do not edit manually",
+    `// Generated: ${new Date().toISOString()} · ${total} players`,
+    "",
+    "const PLAYER_PHOTOS: Record<string, string> = {",
+    ...entries.map(([name, url]) => `  ${JSON.stringify(name)}: ${JSON.stringify(url)},`),
+    "};",
+    "",
+    "export function playerPhoto(name: string): string | undefined {",
+    "  if (PLAYER_PHOTOS[name]) return PLAYER_PHOTOS[name];",
+    "  // Try last name only as fallback",
+    "  const lastName = name.split(' ').slice(-1)[0];",
+    "  return Object.entries(PLAYER_PHOTOS).find(([k]) => k.endsWith(lastName))?.[1];",
+    "}",
+  ];
+
+  const outPath = join(root, "src", "playerPhotos.ts");
+  writeFileSync(outPath, lines.join("\n") + "\n");
+  console.log(`\nWrote ${outPath}`);
+}
+
+main().catch(e => { console.error(e); process.exit(1); });

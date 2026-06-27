@@ -114,14 +114,23 @@ export const ALL_COUNTRIES = Array.from(
 
 export function matchesForCountries(countries: string[]): Match[] {
   const lower = countries.map((c) => c.toLowerCase());
-  return ALL_MATCHES.filter((m) => {
-    const teams = [m.home, m.away].map((t) => t.toLowerCase());
-    // "IR Iran" should match "iran"
-    const expanded = teams.flatMap((t) =>
-      t.startsWith("ir ") ? [t, t.slice(3)] : [t]
-    );
-    return lower.some((c) => expanded.includes(c));
-  }).sort((a, b) => a.startUtc.localeCompare(b.startUtc));
+
+  function teamMatches(team: string): boolean {
+    const t = team.toLowerCase();
+    return lower.includes(t) || (t.startsWith("ir ") && lower.includes(t.slice(3)));
+  }
+
+  // Find all groups that contain at least one selected team
+  const trackedGroups = new Set(
+    ALL_MATCHES
+      .filter((m) => teamMatches(m.home) || teamMatches(m.away))
+      .map((m) => m.group)
+  );
+
+  // Show every match in those groups — not just matches involving the tracked team
+  return ALL_MATCHES
+    .filter((m) => trackedGroups.has(m.group))
+    .sort((a, b) => a.startUtc.localeCompare(b.startUtc));
 }
 
 export function tvnzUrl(match: Match): string | null {

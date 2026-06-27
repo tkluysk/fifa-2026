@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import type { Player } from "../hooks/useCountryData";
 import { useCountryAnalysis } from "../hooks/useCountryAnalysis";
-import { useWikipediaPhoto } from "../hooks/useWikipediaPhoto";
+import { usePlayerPhoto } from "../hooks/usePlayerPhoto";
 import { Tip } from "./Tip";
 
 interface Props {
@@ -20,7 +20,7 @@ const POS_COLORS: Record<string, string> = {
 export function PlayerCard({ player, accentColor, compact }: Props) {
   const [showBio, setShowBio] = useState(false);
   const posColor = POS_COLORS[player.positionAbbr] ?? "#86a98e";
-  const photo = useWikipediaPhoto(player.name);
+  const photo = usePlayerPhoto(player.name);
 
   if (compact) {
     return (
