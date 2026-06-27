@@ -18,7 +18,7 @@ export default function App() {
   const [infoCountry, setInfoCountry] = useState<string | null>(null);
   const [view, setView] = useState<"list" | "calendar">("list");
   const handleInfo = useCallback((c: string) => setInfoCountry(c), []);
-  const { scores, standings, loading: liveLoading, error: liveError } = useLiveData();
+  const { scores, loading: liveLoading, error: liveError } = useLiveData();
 
   const matches = matchesForCountries(selected);
 
@@ -127,7 +127,6 @@ export default function App() {
       {infoCountry && (
         <CountryModal
           country={infoCountry}
-          standings={standings}
           scores={scores}
           onClose={() => setInfoCountry(null)}
         />

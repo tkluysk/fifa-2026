@@ -941,6 +941,187 @@ body {
 .highlight-bad  { background: rgba(239,68,68,.12); color: #fca5a5; }
 .highlight-neutral { background: var(--pitch-mid); color: var(--text-muted); }
 
+/* ── Advanced badge ──────────────────────────────────────────────────────── */
+.advanced-badge {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: .7rem;
+  font-weight: 700;
+  color: var(--green);
+  background: var(--green-dim);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+/* ── Standings team logo ─────────────────────────────────────────────────── */
+.standings-flag-img {
+  width: 18px;
+  height: 13px;
+  object-fit: contain;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+/* ── Squad grid ──────────────────────────────────────────────────────────── */
+.squad-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── Player card ─────────────────────────────────────────────────────────── */
+.player-card {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--pitch-mid);
+  border: 1px solid var(--border);
+  transition: border-color .15s;
+}
+.player-card:hover { border-color: var(--border-strong); }
+.player-card--out { opacity: .5; }
+
+/* Jersey avatar */
+.player-avatar {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  background: var(--surface);
+}
+.player-jersey {
+  font-size: .95rem;
+  font-weight: 900;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.player-pos-abbr {
+  font-size: .52rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  line-height: 1;
+  margin-top: 1px;
+}
+
+/* Player info */
+.player-info { flex: 1; min-width: 0; }
+
+.player-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+.player-name {
+  font-size: .88rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.player-info-btn {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+.player-info-btn::after { font-size: 9px; }
+
+.player-badge { font-size: .8rem; line-height: 1; }
+
+.player-meta {
+  display: flex;
+  gap: 8px;
+  font-size: .72rem;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+.player-club { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.player-age { flex-shrink: 0; }
+
+/* Player tournament stats */
+.player-stats {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.pstat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  min-width: 30px;
+}
+.pstat--warn { border-color: var(--gold); }
+.pstat--danger { border-color: var(--red); }
+.pstat-val {
+  font-size: .78rem;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+}
+.pstat--warn .pstat-val { color: var(--gold); }
+.pstat--danger .pstat-val { color: var(--red); }
+.pstat-label {
+  font-size: .55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-muted);
+  line-height: 1;
+  margin-top: 1px;
+}
+
+/* Player bio panel */
+.player-bio {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  position: relative;
+}
+.player-bio-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: .8rem;
+  padding: 2px 4px;
+}
+.player-bio-close:hover { color: var(--text); }
+.player-bio-text {
+  font-size: .82rem;
+  line-height: 1.6;
+  color: var(--text);
+  padding-right: 20px;
+}
+.player-bio-hint {
+  font-size: .78rem;
+  color: var(--text-muted);
+}
+.player-bio-hint code {
+  font-family: ui-monospace, monospace;
+  font-size: .8em;
+  color: var(--green);
+}
+
 /* ── Footer ──────────────────────────────────────────────────────────────── */
 .site-footer {
   margin-top: 48px;

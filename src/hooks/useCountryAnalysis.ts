@@ -1,22 +1,14 @@
 /**
- * Generates a country tournament analysis via Claude (claude-haiku).
- *
- * Requires VITE_ANTHROPIC_API_KEY to be set; degrades gracefully without it.
- *
- * Returns:
- *   data    — parsed Claude response (or null)
- *   loading — true while generating
- *   error   — error message if generation failed
- *   hasKey  — whether the API key is configured
- *   fetch   — call this with (country, liveData) to trigger generation
+ * Generates AI analysis via Claude Haiku.
+ * Used for both country tournament summaries and individual player profiles.
+ * Requires VITE_ANTHROPIC_API_KEY; degrades gracefully without it.
  */
 
 import { useState } from "react";
 import Anthropic from "@anthropic-ai/sdk";
-import type { GroupRow } from "../countryInfo";
+import type { GroupStandings } from "./useCountryData";
 import type { LiveScore } from "./useLiveData";
 import { ALL_MATCHES } from "../matches";
-import { COUNTRY_DATA } from "../countryInfo";
 
 export interface AnalysisHighlight {
   type: "good" | "bad" | "neutral";
@@ -30,61 +22,70 @@ export interface Analysis {
   prognosis: string;
 }
 
-function buildPrompt(
+function buildCountryPrompt(
   country: string,
-  standings: GroupRow[] | null,
+  groupStandings: GroupStandings | null,
   scores: Record<string, LiveScore>
 ): string {
-  const data = COUNTRY_DATA[country];
-  const standingsStr = (standings ?? data?.groupTable ?? [])
+  const group = groupStandings?.groupName ?? "unknown group";
+
+  const standingsStr = (groupStandings?.rows ?? [])
     .map((r) => `  ${r.pos}. ${r.team} — ${r.pts}pts (W${r.w} D${r.d} L${r.l}, GF${r.gf} GA${r.ga})`)
     .join("\n");
 
-  const resultsStr = (data?.results ?? [])
-    .map((r) => {
-      const matchId = ALL_MATCHES.find(
-        (m) =>
-          m.home.toLowerCase() === r.home.toLowerCase() &&
-          m.away.toLowerCase() === r.away.toLowerCase()
-      )?.id;
-      const live = matchId ? scores[matchId] : undefined;
-      const score = live?.status !== "scheduled"
-        ? `${live?.home ?? r.homeScore}–${live?.away ?? r.awayScore}`
-        : `${r.homeScore}–${r.awayScore}`;
-      return `  ${r.home} ${score} ${r.away} (${r.scorers})`;
+  // Derive results from live scores for this country's matches
+  const countryMatches = ALL_MATCHES.filter(
+    (m) =>
+      m.home.toLowerCase() === country.toLowerCase() ||
+      m.away.toLowerCase() === country.toLowerCase() ||
+      // Handle "IR Iran" / "Iran" normalisation
+      (country === "IR Iran" && (m.home === "IR Iran" || m.away === "IR Iran"))
+  );
+
+  const resultsStr = countryMatches
+    .map((m) => {
+      const s = scores[m.id];
+      if (!s || s.status === "scheduled") return `  ${m.home} vs ${m.away} — not yet played`;
+      return `  ${m.home} ${s.home}–${s.away} ${m.away}`;
     })
-    .join("\n");
+    .join("\n") || "  No results available yet";
 
-  return `You are a sharp FIFA World Cup 2026 analyst. Generate a concise, honest, opinionated analysis for ${country} in Group G of the 2026 FIFA World Cup.
+  return `You are a sharp FIFA World Cup 2026 analyst. Generate a concise, honest, opinionated analysis for ${country} in the 2026 FIFA World Cup.
 
-Today's date: ${new Date().toDateString()}. The group stage final round is June 26–27, 2026.
+Today's date: ${new Date().toDateString()}.
 
-GROUP G STANDINGS:
-${standingsStr}
+${group.toUpperCase()} STANDINGS:
+${standingsStr || "  Not available"}
 
-${country.toUpperCase()}'S MATCH RESULTS:
+${country.toUpperCase()}'S MATCHES:
 ${resultsStr}
-
-NEXT GAME:
-${data?.nextGame ?? "Unknown"}
-
-CONTEXT:
-- Belgium and New Zealand play each other in the final group game (simultaneous with Egypt vs Iran)
-- Top 2 teams advance directly; 3rd place may advance as one of the 8 best third-placed teams across all 12 groups
-- Belgium took 23 shots without scoring against Iran (most in a World Cup game without scoring since 1994)
-- Ngoy received a red card in Belgium's match against Iran
-- New Zealand's Chris Just scored twice against Iran
-- Egypt recorded their first World Cup win since 1934
 
 Return ONLY valid JSON (no markdown, no commentary) in exactly this structure:
 {
   "summary": "2–3 honest sentences about their tournament journey so far",
   "highlights": [
     {"type": "good"|"bad"|"neutral", "text": "one-line observation"},
-    ... (3–5 items)
+    {"type": "good"|"bad"|"neutral", "text": "one-line observation"},
+    {"type": "good"|"bad"|"neutral", "text": "one-line observation"}
   ],
-  "whatTheyNeed": "1–2 sentences on the exact results needed to advance",
+  "whatTheyNeed": "1–2 sentences on the exact results needed to advance or their next challenge",
   "prognosis": "2–3 sentences on their realistic chances for the rest of the tournament"
+}`;
+}
+
+function buildPlayerPrompt(_playerName: string, customPrompt: string): string {
+  return `You are a FIFA World Cup 2026 analyst. ${customPrompt}
+
+Return ONLY valid JSON (no markdown, no commentary) in exactly this structure:
+{
+  "summary": "3–4 punchy sentences about their career and path to this tournament",
+  "highlights": [
+    {"type": "good"|"bad"|"neutral", "text": "one-line career highlight or fact"},
+    {"type": "good"|"bad"|"neutral", "text": "one-line career highlight or fact"},
+    {"type": "good"|"bad"|"neutral", "text": "one-line career highlight or fact"}
+  ],
+  "whatTheyNeed": "What the player needs to do to make an impact in this tournament",
+  "prognosis": "1–2 sentences on what to expect from them in this World Cup"
 }`;
 }
 
@@ -97,9 +98,10 @@ export function useCountryAnalysis() {
   const hasKey = !!apiKey;
 
   async function fetchAnalysis(
-    country: string,
-    standings: GroupRow[] | null,
-    scores: Record<string, LiveScore>
+    subject: string,
+    groupStandings: GroupStandings | null,
+    scores: Record<string, LiveScore>,
+    customPrompt?: string
   ) {
     if (!hasKey) return;
 
@@ -108,12 +110,11 @@ export function useCountryAnalysis() {
     setError(null);
 
     try {
-      const client = new Anthropic({
-        apiKey,
-        dangerouslyAllowBrowser: true,
-      });
+      const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
 
-      const prompt = buildPrompt(country, standings, scores);
+      const prompt = customPrompt
+        ? buildPlayerPrompt(subject, customPrompt)
+        : buildCountryPrompt(subject, groupStandings, scores);
 
       const msg = await client.messages.create({
         model: "claude-haiku-4-5-20251001",
@@ -122,7 +123,6 @@ export function useCountryAnalysis() {
       });
 
       const raw = (msg.content[0] as { text: string }).text;
-      // strip markdown code fences if present
       const jsonStr = raw.replace(/^```(?:json)?\n?/i, "").replace(/\n?```$/, "").trim();
       setData(JSON.parse(jsonStr) as Analysis);
     } catch (e) {
