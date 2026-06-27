@@ -754,19 +754,20 @@ body {
 }
 .modal-close {
   position: absolute;
-  top: 14px;
+  top: 16px;
   right: 16px;
   border: 1px solid var(--border);
-  background: var(--pitch-mid);
+  background: var(--surface-raised);
   border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  font-size: 1rem;
+  width: 30px;
+  height: 30px;
+  font-size: .85rem;
   cursor: pointer;
   color: var(--text-muted);
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 1;
 }
 .modal-close:hover { background: var(--border); color: var(--text); }
 .modal-header {
@@ -774,6 +775,7 @@ body {
   align-items: center;
   gap: 14px;
   margin-bottom: 20px;
+  padding-right: 40px;
 }
 .modal-flag { font-size: 3rem; line-height: 1; }
 .modal-title {
