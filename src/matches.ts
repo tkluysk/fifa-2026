@@ -64,7 +64,7 @@ export const ALL_MATCHES: Match[] = [
   { id: "grp-g-2", home: "IR Iran",     away: "New Zealand", group: "G", startUtc: "2026-06-16T01:00:00Z", venue: "BC Place, Vancouver",            tvnzPath: "/liveevent/ir-iran-v-new-zealand-groupg" },
   { id: "grp-g-3", home: "Belgium",     away: "IR Iran",     group: "G", startUtc: "2026-06-21T19:00:00Z", venue: "SoFi Stadium, Los Angeles",      tvnzPath: "/liveevent/belgium-v-ir-iran" },
   { id: "grp-g-4", home: "New Zealand", away: "Egypt",       group: "G", startUtc: "2026-06-22T01:00:00Z", venue: "BC Place, Vancouver",            tvnzPath: "/liveevent/new-zealand-v-egypt" },
-  { id: "grp-g-5", home: "Egypt",       away: "IR Iran",     group: "G", startUtc: "2026-06-26T01:00:00Z", venue: "Levi's Stadium, San Francisco",  tvnzPath: "/liveevent/egypt-v-ir-iran" },
+  { id: "grp-g-5", home: "Egypt",       away: "IR Iran",     group: "G", startUtc: "2026-06-27T03:00:00Z", venue: "Levi's Stadium, San Francisco",  tvnzPath: "/liveevent/egypt-v-ir-iran" },
   { id: "grp-g-6", home: "New Zealand", away: "Belgium",     group: "G", startUtc: "2026-06-27T03:00:00Z", venue: "BC Place, Vancouver",            tvnzPath: "/liveevent/new-zealand-v-belgium" },
 
   // ── Group H: Spain · Cape Verde · Saudi Arabia · Uruguay ───────────────
