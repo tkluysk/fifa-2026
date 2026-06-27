@@ -31,7 +31,7 @@ export function PlayerCard({ player, accentColor, compact }: Props) {
             : <span className="pitch-jersey" style={{ color: posColor }}>{player.jersey}</span>
           }
         </div>
-        <span className="pitch-name">{player.shortName ?? player.name.split(" ").pop()}</span>
+        <span className="pitch-name">{player.name.split(" ").pop()}</span>
         {player.goals > 0 && <span className="pitch-goals">⚽×{player.goals}</span>}
       </div>
     );
