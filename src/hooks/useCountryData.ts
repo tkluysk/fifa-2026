@@ -215,8 +215,10 @@ export function useCountryData() {
   const [data, setData] = useState<Record<string, CountryData>>({});
 
   const fetch = useCallback(async (country: string) => {
-    // Already loaded
-    if (data[country]?.roster.length > 0) return;
+    // Always re-fetch standings so group tables reflect live results.
+    // Roster is stable during the tournament — skip if already loaded.
+    const rosterAlreadyLoaded = data[country]?.roster.length > 0;
+    standingsCache.data = null; // bust so ESPN standings are re-fetched
 
     setData((prev) => ({
       ...prev,
@@ -248,11 +250,11 @@ export function useCountryData() {
         }));
       }
 
-      // Fetch roster (cached per team)
+      // Fetch roster (cached per team — stable during the tournament)
       const teamId = ESPN_TEAM_IDS[country];
-      let roster: Player[] = [];
+      let roster: Player[] = rosterAlreadyLoaded ? (data[country]?.roster ?? []) : [];
 
-      if (teamId) {
+      if (teamId && !rosterAlreadyLoaded) {
         if (rosterCache[teamId]) {
           roster = rosterCache[teamId];
         } else {

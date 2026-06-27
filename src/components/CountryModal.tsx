@@ -32,13 +32,19 @@ export function CountryModal({ country, scores, allMatches, onClose }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country]);
 
-  // Run AI analysis once standings are loaded
+  // Re-run AI analysis when standings finish loading OR when live scores change
+  // for this country's matches. Stringify only relevant match scores as the dep key.
+  const relevantScoreKey = allMatches
+    .filter((m) => m.home === country || m.away === country)
+    .map((m) => `${m.id}:${scores[m.id]?.home ?? ""}${scores[m.id]?.away ?? ""}${scores[m.id]?.status ?? ""}`)
+    .join("|");
+
   useEffect(() => {
     if (cd && !cd.loading) {
       fetchAnalysis(country, cd.groupStandings, scores, undefined, allMatches);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [country, cd?.loading]);
+  }, [country, cd?.loading, relevantScoreKey]);
 
   // Close on Escape
   useEffect(() => {
