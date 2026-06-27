@@ -1,8 +1,20 @@
 # FIFA World Cup 2026 — Match Tracker
 
-React + Vite web app that lets you pick countries and see their group-stage matches with TVNZ stream links and one-click Google Calendar add buttons.
+React + Vite web app to track World Cup matches for countries you care about.
+Pick any of the 32 teams, see all three group-stage games, live scores, TVNZ stream links, and potential knockout paths.
 
 Deployed via **AWS Amplify** (see below).
+
+## Features
+
+- **All 72 group-stage fixtures** across Groups A–L, all three matchdays
+- **Live scores** via ESPN's public scoreboard API — no key needed, auto-polls every 5 min when a match is in progress
+- **TVNZ+ links** for matches with NZ broadcast rights
+- **Google Calendar export** — one-click `.ics` download for all selected matches (import into Google Cal, Apple Calendar, or Outlook to replace existing entries)
+- **Potential knockout cards** placeholder blocks for R32 → Final for Group G teams
+- **List view** (times in NZT) and **Calendar view** (times in your local timezone)
+- **Country info modal** — group standings, results, AI-generated tournament analysis (needs `VITE_ANTHROPIC_API_KEY`)
+- **Dark sporty theme** — flag-derived colour gradients on each match card
 
 ## Running locally
 
@@ -11,23 +23,47 @@ npm install
 npm run dev
 ```
 
+Runs on `http://localhost:5173` by default.
+
+### Optional: AI country analysis
+
+```bash
+# .env.local (gitignored)
+VITE_ANTHROPIC_API_KEY=sk-ant-...
+```
+
+Get a key at [console.anthropic.com](https://console.anthropic.com). Without it, the ⓘ modal shows structured stats only. With it, Claude Haiku generates a live tournament analysis on every click.
+
 ## Deploying to AWS Amplify
 
-1. Push this repo to GitHub (already done)
+1. Push this repo to GitHub
 2. Go to [AWS Amplify Console](https://us-east-1.console.aws.amazon.com/amplify/home)
 3. **New app → Host web app → GitHub** → select this repo + `main` branch
 4. Amplify auto-detects the `amplify.yml` build config — no manual setup needed
-5. Deploy
+5. Add environment variable `VITE_ANTHROPIC_API_KEY` in Amplify → App settings → Environment variables (optional)
+6. Deploy
 
 The build output (`dist/`) is a fully static site — no server required.
 
-## Adding more countries / matches
+## Calendar export
 
-Edit [src/matches.ts](src/matches.ts). Each entry needs:
+The **⬇ Export to Calendar** button downloads `fifa-2026.ics` containing:
+- All confirmed group-stage matches for selected countries
+- Potential knockout slots (R32 → Final) for Group G teams
+
+To "replace" entries in Google Calendar: delete the old imported calendar, then import the new `.ics`. Full OAuth sync (write access) is planned as a future phase.
+
+## Fixture data
+
+All 72 group-stage fixtures are in [src/matches.ts](src/matches.ts). Matchday 1 dates/venues are confirmed; later matchdays use the official schedule and may shift slightly. TVNZ stream paths are only populated for matches with confirmed NZ broadcast rights.
+
+## Adding or correcting a match
+
+Edit [src/matches.ts](src/matches.ts):
 
 ```ts
 {
-  id: "unique-id",
+  id: "grp-x-n",
   home: "Country Name",
   away: "Country Name",
   group: "A",
@@ -41,11 +77,9 @@ Edit [src/matches.ts](src/matches.ts). Each entry needs:
 
 ## Archive — Python calendar sync (deprecated)
 
-The original approach was a Python script that used the **Google Calendar API** (OAuth2) to write events server-side. It worked, but required credentials management and a local Python environment.
+The original approach was a Python script using the **Google Calendar API** (OAuth2) to write events server-side. It's been superseded by the `.ics` export.
 
-The web app replaces it with a purely static approach: the **"Add to Google Calendar"** button generates a pre-filled `calendar.google.com/calendar/render` URL, so no backend or credentials are needed.
-
-The Python scripts are kept in [`archive/`](archive/) for reference:
+The scripts are kept in [`archive/`](archive/) for reference:
 
 | File | Purpose |
 |---|---|
