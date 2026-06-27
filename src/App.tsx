@@ -45,7 +45,6 @@ export default function App() {
         <p className="subtitle">
           Pick countries · see live scores · watch on TVNZ+
         </p>
-        {liveLoading && <p className="live-status">Fetching live scores…</p>}
         {liveError && <p className="live-status live-status--error">{liveError}</p>}
       </header>
 
@@ -67,6 +66,11 @@ export default function App() {
       </div>
 
       <main className="main">
+        {liveLoading && (
+          <div className="scores-loading">
+            <span className="spinner" /> Fetching live scores…
+          </div>
+        )}
         {selected.length === 0 ? (
           <p className="empty">Select at least one country above.</p>
         ) : matches.length === 0 ? (

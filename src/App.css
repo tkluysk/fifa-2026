@@ -233,6 +233,14 @@ body {
 
 /* ── Match list ──────────────────────────────────────────────────────────── */
 .main { }
+.scores-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .82rem;
+  color: var(--text-muted);
+  padding: 10px 0 6px;
+}
 .match-list {
   list-style: none;
   display: flex;

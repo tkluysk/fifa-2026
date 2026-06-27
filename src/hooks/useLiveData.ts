@@ -29,15 +29,14 @@ export interface LiveData {
 // ESPN's public soccer scoreboard (no auth, CORS-enabled)
 const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard";
 
-// Dates that have Group G matches (YYYYMMDD)
-const GROUP_G_DATES = [
-  "20260615", // Belgium vs Egypt
-  "20260616", // IR Iran vs New Zealand
-  "20260621", // Belgium vs IR Iran
-  "20260622", // New Zealand vs Egypt
-  "20260626", // Egypt vs IR Iran
-  "20260627", // New Zealand vs Belgium
-];
+// All group-stage match dates derived from ALL_MATCHES (YYYYMMDD, deduped)
+const ALL_MATCH_DATES = Array.from(
+  new Set(
+    ALL_MATCHES.map((m) =>
+      m.startUtc.slice(0, 10).replace(/-/g, "")
+    )
+  )
+).sort();
 
 // Normalise a team name for fuzzy matching (ESPN uses "Iran" we use "IR Iran")
 function norm(name: string): string {
@@ -145,6 +144,8 @@ function computeStandings(scores: Record<string, LiveScore>): GroupRow[] {
     .map((r, i) => ({ ...r, pos: i + 1 }));
 }
 
+const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
 export function useLiveData(): LiveData {
   const [scores, setScores] = useState<Record<string, LiveScore>>({});
   const [standings, setStandings] = useState<GroupRow[] | null>(null);
@@ -153,14 +154,15 @@ export function useLiveData(): LiveData {
 
   useEffect(() => {
     let cancelled = false;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
 
-    async function fetchAll() {
-      setLoading(true);
+    async function fetchAll(isBackground = false) {
+      if (!isBackground) setLoading(true);
       setError(null);
 
       try {
         const results = await Promise.allSettled(
-          GROUP_G_DATES.map((d) =>
+          ALL_MATCH_DATES.map((d) =>
             fetch(`${ESPN_BASE}?dates=${d}&limit=20`).then((r) => r.json())
           )
         );
@@ -187,12 +189,24 @@ export function useLiveData(): LiveData {
       } catch {
         if (!cancelled) setError("Live scores unavailable — showing scheduled times only.");
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!isBackground && !cancelled) setLoading(false);
+      }
+
+      // Schedule next poll if any match is live
+      if (!cancelled) {
+        const hasLive = Object.values(scores).some((s) => s.status === "in_progress");
+        if (hasLive) {
+          timerId = setTimeout(() => fetchAll(true), POLL_INTERVAL_MS);
+        }
       }
     }
 
     fetchAll();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (timerId) clearTimeout(timerId);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return { scores, standings, loading, error };
