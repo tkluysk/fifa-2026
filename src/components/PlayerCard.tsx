@@ -32,7 +32,11 @@ export function PlayerCard({ player, accentColor, compact }: Props) {
           }
         </div>
         <span className="pitch-name">{player.name.split(" ").pop()}</span>
-        {player.goals > 0 && <span className="pitch-goals">⚽×{player.goals}</span>}
+        <span className="pitch-stats">
+          {player.goals > 0 && <span className="pitch-goals">⚽×{player.goals}</span>}
+          {player.yellowCards > 0 && <span className="pitch-card pitch-card--yellow" title={`${player.yellowCards} yellow card${player.yellowCards > 1 ? "s" : ""}`}>🟨{player.yellowCards > 1 ? `×${player.yellowCards}` : ""}</span>}
+          {player.redCards > 0 && <span className="pitch-card pitch-card--red" title="Red card">🟥</span>}
+        </span>
       </div>
     );
   }
@@ -137,7 +141,10 @@ function PlayerBio({ player, onClose }: { player: Player; accentColor: string; o
       ) : error ? (
         <p className="analysis-error">⚠️ {error}</p>
       ) : analysis ? (
-        <p className="player-bio-text">{analysis.summary}</p>
+        <>
+          <p className="player-bio-text">{analysis.summary}</p>
+          <p className="ai-disclaimer">AI-generated — may contain inaccuracies.</p>
+        </>
       ) : null}
     </div>
   );

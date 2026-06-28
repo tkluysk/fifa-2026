@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { flag } from "../countryInfo";
 
 interface Props {
@@ -10,11 +11,29 @@ interface Props {
 }
 
 export function CountryPicker({ countries, selected, onToggle, onInfo, advancedSet, eliminatedSet }: Props) {
+  const [showEliminated, setShowEliminated] = useState(false);
+
+  const visible = countries.filter(c =>
+    showEliminated || selected.includes(c) || !eliminatedSet.has(c)
+  );
+
+  const eliminatedCount = countries.filter(c => eliminatedSet.has(c) && !selected.includes(c)).length;
+
   return (
     <div className="picker">
-      <p className="picker-label">Track countries</p>
+      <div className="picker-header">
+        <p className="picker-label">Track countries</p>
+        {eliminatedCount > 0 && (
+          <button
+            className={`picker-elim-toggle${showEliminated ? " picker-elim-toggle--on" : ""}`}
+            onClick={() => setShowEliminated(v => !v)}
+          >
+            {showEliminated ? `Hide eliminated` : `Show eliminated (${eliminatedCount})`}
+          </button>
+        )}
+      </div>
       <div className="picker-chips">
-        {countries.map((c) => {
+        {visible.map((c) => {
           const isSelected = selected.includes(c);
           const isEliminated = eliminatedSet.has(c);
           const isAdvanced = advancedSet.has(c);

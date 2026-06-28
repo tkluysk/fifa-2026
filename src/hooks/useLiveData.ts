@@ -8,10 +8,19 @@ import { useState, useEffect } from "react";
 import type { Match } from "../matches";
 import { normaliseTeamName, tvnzPathForMatch } from "../matches";
 
+export interface MatchCard {
+  player: string;
+  minute: string;
+  type: "yellow" | "red" | "yellow-red"; // yellow-red = second yellow
+}
+
 export interface LiveScore {
   home: number;
   away: number;
   status: "scheduled" | "in_progress" | "finished";
+  clock?: string;        // e.g. "43'"
+  homeCards?: MatchCard[];
+  awayCards?: MatchCard[];
 }
 
 export interface KnockoutFixture {
@@ -119,18 +128,43 @@ function parseGroupMatches(events: unknown[]): { matches: Match[]; scores: Recor
 
     const id = e.id as string;
     const venueObj = comp.venue as Record<string, unknown> | undefined;
-    const city = ((venueObj?.address as Record<string, unknown>)?.city as string)
-      || (venueObj?.fullName as string) || "";
+    const stadiumName = (venueObj?.fullName as string) || "";
+    const venueCity = ((venueObj?.address as Record<string, unknown>)?.city as string) || "";
+    const venue = stadiumName && venueCity ? `${stadiumName}, ${venueCity}` : stadiumName || venueCity;
     matches.push({
       id, home, away,
       group: parseGroup(altGameNote),
       startUtc: (e.date as string) ?? "",
-      venue: city,
+      venue,
       tvnzPath: tvnzPathForMatch(home, away),
     });
 
     if (isFinished || isLive) {
-      scores[id] = { home: homeScore, away: awayScore, status: liveStatus };
+      const clock = ((comp.status as Record<string, unknown>)?.displayClock as string) ?? undefined;
+      const details = (comp.details ?? []) as Record<string, unknown>[];
+      const homeTeamId = (() => {
+        for (const c of competitors) {
+          const cc = c as Record<string, unknown>;
+          if (cc.homeAway === "home") return ((cc.team as Record<string, unknown>)?.id as string) ?? "";
+        }
+        return "";
+      })();
+
+      const homeCards: MatchCard[] = [];
+      const awayCards: MatchCard[] = [];
+      for (const d of details) {
+        const isYellow = !!(d.yellowCard);
+        const isRed = !!(d.redCard);
+        if (!isYellow && !isRed) continue;
+        const type: MatchCard["type"] = isRed && isYellow ? "yellow-red" : isRed ? "red" : "yellow";
+        const minute = ((d.clock as Record<string, unknown>)?.displayValue as string) ?? "";
+        const athletes = (d.athletesInvolved ?? []) as Record<string, unknown>[];
+        const player = (athletes[0]?.shortName as string) ?? (athletes[0]?.displayName as string) ?? "";
+        const teamId = ((d.team as Record<string, unknown>)?.id as string) ?? "";
+        (teamId === homeTeamId ? homeCards : awayCards).push({ player, minute, type });
+      }
+
+      scores[id] = { home: homeScore, away: awayScore, status: liveStatus, clock, homeCards, awayCards };
     }
   }
 
@@ -185,13 +219,14 @@ function parseKnockoutFixtures(events: unknown[]): KnockoutFixture[] {
     if (!home || !away) continue;
 
     const koVenueObj = comp.venue as Record<string, unknown> | undefined;
-    const koCity = ((koVenueObj?.address as Record<string, unknown>)?.city as string)
-      || (koVenueObj?.fullName as string) || "";
+    const koStadiumName = (koVenueObj?.fullName as string) || "";
+    const koCity = ((koVenueObj?.address as Record<string, unknown>)?.city as string) || "";
+    const koVenue = koStadiumName && koCity ? `${koStadiumName}, ${koCity}` : koStadiumName || koCity;
     const fixture: KnockoutFixture = {
       id: e.id as string,
       stage,
       startUtc: (e.date as string) ?? "",
-      venue: koCity,
+      venue: koVenue,
       home,
       away,
     };

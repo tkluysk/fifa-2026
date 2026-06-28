@@ -62,6 +62,9 @@ export function MatchCard({ match, tracked, score, onInfo, isNext }: Props) {
 
   return (
     <li className={`match-card ${status}${isNext ? " match-card--next" : ""}`} style={cardStyle}>
+      {/* Background flags */}
+      <span className="team-flag team-flag--home" aria-hidden="true">{flag(match.home)}</span>
+      <span className="team-flag team-flag--away" aria-hidden="true">{flag(match.away)}</span>
       {/* Meta row */}
       <div className="match-meta">
         <span className="group-badge">Group {match.group}</span>
@@ -72,15 +75,18 @@ export function MatchCard({ match, tracked, score, onInfo, isNext }: Props) {
         {stream && (
           <a className="btn-tvnz-inline" href={stream} target="_blank" rel="noreferrer">📺 TVNZ+</a>
         )}
+        <a className="btn-cal-side" href={cal} target="_blank" rel="noreferrer" title="Add to Google Calendar">
+          <span className="btn-cal-icon">+</span>
+          <span className="btn-cal-label">Cal</span>
+        </a>
       </div>
 
-      {/* Teams + score + cal button in one row */}
+      {/* Teams + score */}
       <div className="match-body">
         <div className="match-teams">
           <div className={`team home${isTracked(match.home, trackedLower) ? " tracked" : ""}`}>
-            <span className="team-flag">{flag(match.home)}</span>
             <span className="team-name">{match.home}</span>
-            <button className="info-btn" aria-label={`Info about ${match.home}`} onClick={() => onInfo(match.home)} />
+            <button className="info-btn" style={{ marginLeft: 6 }} aria-label={`Info about ${match.home}`} onClick={() => onInfo(match.home)} />
           </div>
 
           <div className="score-block">
@@ -89,6 +95,7 @@ export function MatchCard({ match, tracked, score, onInfo, isNext }: Props) {
                 <span className="score-num">{score.home}</span>
                 <span className="score-sep">–</span>
                 <span className="score-num">{score.away}</span>
+                {score.clock && status === "live" && <span className="score-clock">{score.clock}</span>}
               </>
             ) : (
               <span className="vs">vs</span>
@@ -96,17 +103,32 @@ export function MatchCard({ match, tracked, score, onInfo, isNext }: Props) {
           </div>
 
           <div className={`team away${isTracked(match.away, trackedLower) ? " tracked" : ""}`}>
-            <button className="info-btn" aria-label={`Info about ${match.away}`} onClick={() => onInfo(match.away)} />
+            <button className="info-btn" style={{ marginRight: 6 }} aria-label={`Info about ${match.away}`} onClick={() => onInfo(match.away)} />
             <span className="team-name">{match.away}</span>
-            <span className="team-flag">{flag(match.away)}</span>
           </div>
         </div>
-
-        <a className="btn-cal-side" href={cal} target="_blank" rel="noreferrer" title="Add to Google Calendar">
-          <span className="btn-cal-icon">+</span>
-          <span className="btn-cal-label">Cal</span>
-        </a>
       </div>
+
+      {/* Cards row — only shown when cards exist */}
+      {((score?.homeCards?.length ?? 0) > 0 || (score?.awayCards?.length ?? 0) > 0) && (
+        <div className="match-cards-row">
+          <div className="match-cards-team">
+            {score!.homeCards!.map((c, i) => (
+              <span key={i} className={`match-card-chip match-card-chip--${c.type}`} title={`${c.player} ${c.minute}`}>
+                {c.type === "yellow" ? "🟨" : c.type === "red" ? "🟥" : "🟨🟥"} <span className="match-card-player">{c.player}</span> <span className="match-card-min">{c.minute}</span>
+              </span>
+            ))}
+          </div>
+          <div className="match-cards-spacer" />
+          <div className="match-cards-team match-cards-team--away">
+            {score!.awayCards!.map((c, i) => (
+              <span key={i} className={`match-card-chip match-card-chip--${c.type}`} title={`${c.player} ${c.minute}`}>
+                <span className="match-card-min">{c.minute}</span> <span className="match-card-player">{c.player}</span> {c.type === "yellow" ? "🟨" : c.type === "red" ? "🟥" : "🟨🟥"}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <p className="match-venue">📍 {match.venue}{tempForCity(match.venue) ? ` · 🌡 ${tempForCity(match.venue)}` : ""}</p>
     </li>

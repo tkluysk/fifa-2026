@@ -5,11 +5,67 @@
  *            vertically centred between their two feeders.
  */
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import type { KnockoutFixture, GroupStandingsMap } from "../hooks/useLiveData";
 import { resolveSlot, knockoutPathForCountry } from "../hooks/useLiveData";
 import { flag, countryColor } from "../countryInfo";
 const TVNZ_BASE = "https://www.tvnz.co.nz";
+
+function CandidateTooltip({ candidates, tracked }: { candidates: string[]; tracked?: string[] }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const triggerRef = useRef<HTMLSpanElement>(null);
+
+  const reposition = useCallback(() => {
+    if (!triggerRef.current) return;
+    const r = triggerRef.current.getBoundingClientRect();
+    setPos({
+      top: r.top + window.scrollY - 8,
+      left: r.left + window.scrollX + r.width / 2,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    reposition();
+    const close = () => setOpen(false);
+    window.addEventListener("scroll", close, { passive: true });
+    window.addEventListener("resize", close);
+    document.addEventListener("click", close);
+    return () => {
+      window.removeEventListener("scroll", close);
+      window.removeEventListener("resize", close);
+      document.removeEventListener("click", close);
+    };
+  }, [open, reposition]);
+
+  const label = candidates.slice(0, 3).map(c => flag(c)).join("") + (candidates.length > 3 ? ` +${candidates.length - 3}` : "");
+
+  return (
+    <>
+      <span
+        ref={triggerRef}
+        className="bracket-cand-trigger"
+        onMouseEnter={() => { reposition(); setOpen(true); }}
+        onMouseLeave={() => setOpen(false)}
+        onClick={e => { e.stopPropagation(); reposition(); setOpen(v => !v); }}
+      >
+        {label}
+      </span>
+      {open && createPortal(
+        <div className="bracket-cand-popup" style={{ top: pos.top, left: pos.left }}>
+          {candidates.map(c => (
+            <div key={c} className={`bracket-cand-popup-row${tracked?.map(t => t.toLowerCase()).includes(c.toLowerCase()) ? " bracket-cand-popup-row--tracked" : ""}`}>
+              {flag(c)} {c}
+            </div>
+          ))}
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
 
 interface Props {
   fixtures: KnockoutFixture[];
@@ -172,15 +228,9 @@ function FlowCard({ fixture, country, gsMap, accent }: {
       )}
       <div className="bracket-flow-opp">
         {known ? (
-          <><span title={opponentSlot}>{flag(opponentSlot)}</span> <span>{opponentSlot}</span></>
+          <><span>{flag(opponentSlot)}</span> <span>{opponentSlot}</span></>
         ) : candidates.length > 0 ? (
-          <span className="bracket-flow-candidates">
-            {candidates.map(c => (
-              <span key={c} className="bracket-flow-cand" title={c}>
-                {flag(c)} <span className="bracket-flow-cand-name">{c}</span>
-              </span>
-            ))}
-          </span>
+          <CandidateTooltip candidates={candidates} />
         ) : (
           <span className="bracket-flow-tbd">TBD</span>
         )}
@@ -417,15 +467,9 @@ function FullTeamRow({ name, score, won, lost, gsMap, tracked }: {
     <div className={`bracket-full-team${isTracked || trackedCand ? " bracket-full-team--tracked" : ""}${won ? " bracket-full-team--won" : lost ? " bracket-full-team--lost" : ""}`}>
       <span className="bracket-full-team-name">
         {known
-          ? <><span title={name}>{flag(name)}</span> <span className={isTracked ? "bracket-name-bold" : ""}>{name}</span></>
+          ? <><span>{flag(name)}</span> <span className={isTracked ? "bracket-name-bold" : ""}>{name}</span></>
           : candidates.length > 0
-            ? <span className="bracket-candidates-row">
-                {candidates.map(c => (
-                  <span key={c} className={`bracket-flow-cand${tracked.map(t => t.toLowerCase()).includes(c.toLowerCase()) ? " bracket-flow-cand--tracked" : ""}`} title={c}>
-                    {flag(c)} <span className="bracket-flow-cand-name">{c}</span>
-                  </span>
-                ))}
-              </span>
+            ? <CandidateTooltip candidates={candidates} tracked={tracked} />
             : <span className="bracket-tbd">
                 {name.replace(/Round of (32|16) /i, 'R$1 ').replace(/Quarterfinal /i, 'QF ').replace(/Semifinal /i, 'SF ')}
               </span>

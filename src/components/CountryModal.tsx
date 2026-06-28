@@ -242,6 +242,7 @@ export function CountryModal({ country, scores, allMatches, onClose }: Props) {
 
               <h4>Prognosis</h4>
               <p className="analysis-prognosis">{analysis.prognosis}</p>
+              <p className="ai-disclaimer">AI-generated — may contain inaccuracies. Based on data available at time of generation.</p>
             </div>
           ) : null}
         </section>

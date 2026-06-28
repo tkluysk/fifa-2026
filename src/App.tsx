@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { ALL_COUNTRIES, matchesForCountries } from "./matches";
 import { MatchCard } from "./components/MatchCard";
 import { PotentialMatchCard } from "./components/PotentialMatchCard";
@@ -19,6 +19,12 @@ function countriesFromMatches(matches: import("./matches").Match[]): string[] {
 }
 
 const LS_KEY = "fifa2026-selected";
+const LS_THEME = "fifa2026-theme";
+
+function loadTheme(): "dark" | "light" {
+  try { return (localStorage.getItem(LS_THEME) as "dark" | "light") ?? "dark"; }
+  catch { return "dark"; }
+}
 
 function loadSelected(): string[] {
   try {
@@ -33,7 +39,13 @@ export default function App() {
   const [selected, setSelected] = useState<string[]>(loadSelected);
   const [infoCountry, setInfoCountry] = useState<string | null>(null);
   const [view, setView] = useState<"list" | "calendar">("list");
+  const [theme, setTheme] = useState<"dark" | "light">(loadTheme);
   const handleInfo = useCallback((c: string) => setInfoCountry(c), []);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme === "light" ? "light" : "");
+    localStorage.setItem(LS_THEME, theme);
+  }, [theme]);
   const { matches: allMatches, knockoutFixtures, scores, groupStandingsMap, advancedSet, eliminatedSet, loading: liveLoading, error: liveError } = useLiveData();
 
   const countries = countriesFromMatches(allMatches);
@@ -64,6 +76,13 @@ export default function App() {
   return (
     <div className="app">
       <header className="site-header">
+        <button
+          className="theme-toggle"
+          onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}
+          title="Toggle dark/light mode"
+        >
+          {theme === "dark" ? "☀️ Light" : "🌙 Dark"}
+        </button>
         <h1>
           <span className="ball">⚽</span> FIFA World Cup 2026
         </h1>
@@ -126,13 +145,18 @@ export default function App() {
           <ul className="match-list">
             {(() => {
               const now = Date.now();
-              const past = matches.filter(m => new Date(m.startUtc).getTime() <= now);
-              const upcoming = matches.filter(m => new Date(m.startUtc).getTime() > now);
+              const live = matches.filter(m => scores[m.id]?.status === "in_progress");
+              const liveIds = new Set(live.map(m => m.id));
+              const past = matches.filter(m => !liveIds.has(m.id) && new Date(m.startUtc).getTime() <= now);
+              const upcoming = matches.filter(m => !liveIds.has(m.id) && new Date(m.startUtc).getTime() > now);
               const upcomingNextSet = new Set(
                 upcoming.slice(0, 2).map(m => m.id)
               );
               return (
                 <>
+                  {live.map(m => (
+                    <MatchCard key={m.id} match={m} tracked={selected} score={scores[m.id]} onInfo={setInfoCountry} isNext={false} />
+                  ))}
                   {past.length > 0 && (
                     <li className="past-matches-section">
                       <details>

@@ -108,12 +108,6 @@ export function useGoogleCalendar() {
     }
   }, [requestToken]);
 
-  const disconnect = useCallback(() => {
-    clearToken();
-    setStatus("idle");
-    setError(null);
-    setLastSync(null);
-  }, []);
 
   return { hasClientId, status, error, lastSync, sync };
 }
