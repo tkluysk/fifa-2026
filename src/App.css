@@ -59,7 +59,7 @@
 [data-theme="light"] .potential .team-name {
   color: var(--text-primary);
 }
-[data-theme="light"] .pitch-name {
+[data-theme="light"] .pitch-bench .pitch-name {
   color: #0f2e17;
   text-shadow: 0 1px 2px rgba(255,255,255,.7);
 }
