@@ -44,7 +44,8 @@ function groupByLineup(roster: Player[], lineup: MatchLineup): {
 
   for (const entry of lineup.players) {
     const player = byId.get(entry.athleteId) ?? stubPlayer(entry);
-    if (entry.starter) {
+    const onPitch = (entry.starter && !entry.subbedOut) || entry.subbedIn;
+    if (onPitch) {
       starterGroups[lineGroup(entry.positionAbbr)].push(player);
     } else {
       subs.push(player);
