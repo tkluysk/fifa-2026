@@ -872,6 +872,55 @@ details[open] .past-matches-summary::before { content: "▼ "; }
 .match-card-player { font-weight: 600; color: var(--text-secondary); }
 .match-card-min { font-size: .58rem; color: var(--text-muted); }
 
+.match-goals-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: .65rem;
+}
+.match-goals-team {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  align-items: flex-end;
+}
+.match-goals-team--away { align-items: flex-start; }
+.match-goal-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-secondary);
+}
+.match-goal-player { font-weight: 600; }
+.match-goal-type {
+  font-size: .56rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 3px;
+}
+
+.match-stats-row {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 5px;
+  font-size: .62rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  padding-top: 5px;
+}
+.match-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.match-stat-val { color: var(--text-secondary); font-weight: 600; font-variant-numeric: tabular-nums; }
+.match-stat-label { font-size: .58rem; text-transform: uppercase; letter-spacing: .04em; }
+
 .match-venue {
   font-size: .73rem;
   color: var(--text-muted);

@@ -1,7 +1,7 @@
 import type { Match } from "../matches";
 import { gcalUrl, tvnzUrl } from "../matches";
 import { flag, countryColor } from "../countryInfo";
-import type { LiveScore } from "../hooks/useLiveData";
+import type { LiveScore, GoalEvent } from "../hooks/useLiveData";
 import { tempForCity } from "../cityTemps";
 
 function CalIcon() {
@@ -142,7 +142,58 @@ export function MatchCard({ match, tracked, score, onInfo, isNext }: Props) {
         </div>
       )}
 
+      {/* Goals row */}
+      {((score?.homeGoals?.length ?? 0) > 0 || (score?.awayGoals?.length ?? 0) > 0) && (
+        <div className="match-goals-row">
+          <div className="match-goals-team">
+            {score!.homeGoals!.map((g, i) => <GoalChip key={i} goal={g} />)}
+          </div>
+          <div className="match-cards-spacer" />
+          <div className="match-goals-team match-goals-team--away">
+            {score!.awayGoals!.map((g, i) => <GoalChip key={i} goal={g} />)}
+          </div>
+        </div>
+      )}
+
+      {/* Match stats row */}
+      {score?.stats && (score.stats.homeShots !== undefined || score.stats.homePossession !== undefined) && (
+        <div className="match-stats-row">
+          {score.stats.homePossession !== undefined && (
+            <span className="match-stat-item">
+              <span className="match-stat-val">{score.stats.homePossession}%</span>
+              <span className="match-stat-label">poss</span>
+              <span className="match-stat-val">{score.stats.awayPossession}%</span>
+            </span>
+          )}
+          {score.stats.homeShots !== undefined && (
+            <span className="match-stat-item">
+              <span className="match-stat-val">{score.stats.homeShots}</span>
+              <span className="match-stat-label">shots</span>
+              <span className="match-stat-val">{score.stats.awayShots}</span>
+            </span>
+          )}
+          {score.stats.homeShotsOnTarget !== undefined && (
+            <span className="match-stat-item">
+              <span className="match-stat-val">{score.stats.homeShotsOnTarget}</span>
+              <span className="match-stat-label">on target</span>
+              <span className="match-stat-val">{score.stats.awayShotsOnTarget}</span>
+            </span>
+          )}
+        </div>
+      )}
+
       <p className="match-venue">📍 {match.venue}{tempForCity(match.venue) ? ` · 🌡 ${tempForCity(match.venue)}` : ""}</p>
     </li>
+  );
+}
+
+function GoalChip({ goal }: { goal: GoalEvent }) {
+  const label = goal.ownGoal ? "OG" : goal.penalty ? "P" : "";
+  return (
+    <span className="match-goal-chip">
+      ⚽ <span className="match-goal-player">{goal.player}</span>
+      {label && <span className="match-goal-type">{label}</span>}
+      <span className="match-card-min">{goal.minute}</span>
+    </span>
   );
 }

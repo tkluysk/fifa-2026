@@ -11,16 +11,35 @@ import { normaliseTeamName, tvnzPathForMatch } from "../matches";
 export interface MatchCard {
   player: string;
   minute: string;
-  type: "yellow" | "red" | "yellow-red"; // yellow-red = second yellow
+  type: "yellow" | "red" | "yellow-red";
+}
+
+export interface GoalEvent {
+  player: string;
+  minute: string;
+  ownGoal: boolean;
+  penalty: boolean;
+}
+
+export interface MatchStats {
+  homePossession?: number;
+  awayPossession?: number;
+  homeShots?: number;
+  awayShots?: number;
+  homeShotsOnTarget?: number;
+  awayShotsOnTarget?: number;
 }
 
 export interface LiveScore {
   home: number;
   away: number;
   status: "scheduled" | "in_progress" | "finished";
-  clock?: string;        // e.g. "43'"
+  clock?: string;
   homeCards?: MatchCard[];
   awayCards?: MatchCard[];
+  homeGoals?: GoalEvent[];
+  awayGoals?: GoalEvent[];
+  stats?: MatchStats;
 }
 
 export interface KnockoutFixture {
@@ -152,19 +171,43 @@ function parseGroupMatches(events: unknown[]): { matches: Match[]; scores: Recor
 
       const homeCards: MatchCard[] = [];
       const awayCards: MatchCard[] = [];
+      const homeGoals: GoalEvent[] = [];
+      const awayGoals: GoalEvent[] = [];
       for (const d of details) {
         const isYellow = !!(d.yellowCard);
         const isRed = !!(d.redCard);
-        if (!isYellow && !isRed) continue;
-        const type: MatchCard["type"] = isRed && isYellow ? "yellow-red" : isRed ? "red" : "yellow";
+        const isGoal = !!(d.scoringPlay);
         const minute = ((d.clock as Record<string, unknown>)?.displayValue as string) ?? "";
         const athletes = (d.athletesInvolved ?? []) as Record<string, unknown>[];
         const player = (athletes[0]?.shortName as string) ?? (athletes[0]?.displayName as string) ?? "";
         const teamId = ((d.team as Record<string, unknown>)?.id as string) ?? "";
-        (teamId === homeTeamId ? homeCards : awayCards).push({ player, minute, type });
+        if (isGoal) {
+          const goal: GoalEvent = { player, minute, ownGoal: !!(d.ownGoal), penalty: !!(d.penaltyKick) };
+          (teamId === homeTeamId ? homeGoals : awayGoals).push(goal);
+        } else if (isYellow || isRed) {
+          const type: MatchCard["type"] = isRed && isYellow ? "yellow-red" : isRed ? "red" : "yellow";
+          (teamId === homeTeamId ? homeCards : awayCards).push({ player, minute, type });
+        }
       }
 
-      scores[id] = { home: homeScore, away: awayScore, status: liveStatus, clock, homeCards, awayCards };
+      // Parse team stats from competitors
+      let stats: MatchStats | undefined;
+      for (const c of competitors) {
+        const cc = c as Record<string, unknown>;
+        const isHome = cc.homeAway === "home";
+        const statsList = (cc.statistics ?? []) as Record<string, unknown>[];
+        for (const s of statsList) {
+          const name = s.name as string;
+          const val = parseFloat(s.value as string);
+          if (isNaN(val)) continue;
+          if (!stats) stats = {};
+          if (name === "possessionPct") isHome ? (stats.homePossession = val) : (stats.awayPossession = val);
+          if (name === "totalShots") isHome ? (stats.homeShots = val) : (stats.awayShots = val);
+          if (name === "shotsOnTarget") isHome ? (stats.homeShotsOnTarget = val) : (stats.awayShotsOnTarget = val);
+        }
+      }
+
+      scores[id] = { home: homeScore, away: awayScore, status: liveStatus, clock, homeCards, awayCards, homeGoals, awayGoals, stats };
     }
   }
 

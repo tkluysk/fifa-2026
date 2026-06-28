@@ -184,8 +184,12 @@ export default function App() {
               if (group === "?") return null;
               const path = knockoutPathForCountry(country, group, knockoutFixtures);
               if (path.length === 0) return null;
+              const isTBD = (name: string) => /(group|round of|winner|place|runner|loser|quarterfinal|semifinal)/i.test(name);
+              const opponentOf = (f: typeof path[0]) => f.home.toLowerCase() === country.toLowerCase() ? f.away : f.home;
               const pastKO = path.filter(f => f.score?.status === "finished");
               const upcomingKO = path.filter(f => f.score?.status !== "finished");
+              const confirmedKO = upcomingKO.filter(f => !isTBD(opponentOf(f)));
+              const potentialKO = upcomingKO.filter(f => isTBD(opponentOf(f)));
               return (
                 <li key={`ko-section-${country}`} className="potential-section">
                   <ul className="match-list" style={{ listStyle: "none", padding: 0 }}>
@@ -212,14 +216,34 @@ export default function App() {
                         </details>
                       </li>
                     )}
-                    {upcomingKO.length > 0 && (
+                    {confirmedKO.length > 0 && (
                       <li className="past-matches-section">
                         <details>
                           <summary className="past-matches-summary">
-                            Potential games ({upcomingKO.length})
+                            Upcoming knockout games ({confirmedKO.length})
                           </summary>
                           <ul className="match-list past-matches-list">
-                            {upcomingKO.map((f) => (
+                            {confirmedKO.map((f) => (
+                              <PotentialMatchCard
+                                key={`${f.id}-${country}-conf`}
+                                fixture={f}
+                                country={country}
+                                groupStandingsMap={groupStandingsMap}
+                                onInfo={setInfoCountry}
+                              />
+                            ))}
+                          </ul>
+                        </details>
+                      </li>
+                    )}
+                    {potentialKO.length > 0 && (
+                      <li className="past-matches-section">
+                        <details>
+                          <summary className="past-matches-summary">
+                            Potential games ({potentialKO.length})
+                          </summary>
+                          <ul className="match-list past-matches-list">
+                            {potentialKO.map((f) => (
                               <PotentialMatchCard
                                 key={`${f.id}-${country}`}
                                 fixture={f}
