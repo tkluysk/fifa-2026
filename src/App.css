@@ -1856,6 +1856,11 @@ th.tip-host .tip-bubble::before { left: auto; right: 9px; transform: none; }
   border-radius: 8px;
   padding: 8px 10px;
 }
+.pitch-bench .pitch-player { width: 48px; }
+.pitch-bench .pitch-avatar { width: 36px; height: 36px; }
+.pitch-bench .pitch-name { font-size: .55rem; }
+.pitch-bench .pitch-goals,
+.pitch-bench .pitch-card { font-size: .5rem; }
 .pitch-bench-label {
   font-size: .68rem;
   font-weight: 700;
