@@ -4,6 +4,7 @@ import type { LiveScore } from "../hooks/useLiveData";
 import type { Match } from "../matches";
 import { useCountryAnalysis } from "../hooks/useCountryAnalysis";
 import { useCountryData } from "../hooks/useCountryData";
+import { useMatchLineup } from "../hooks/useMatchLineup";
 import { PlayerCard } from "./PlayerCard";
 import { PitchView } from "./PitchView";
 import { Tip } from "./Tip";
@@ -78,6 +79,14 @@ export function CountryModal({ country, scores, allMatches, onClose }: Props) {
     const s = scores[m.id];
     return !s || s.status === "scheduled";
   });
+
+  // Pick the best match for lineup: live > last finished > next scheduled
+  const liveMatch = countryMatches.find(m => scores[m.id]?.status === "in_progress");
+  const lastFinished = [...playedMatches].sort((a, b) => b.startUtc.localeCompare(a.startUtc))[0];
+  const nextScheduled = upcomingMatches[0];
+  const lineupMatch = liveMatch ?? lastFinished ?? nextScheduled ?? null;
+
+  const { lineup } = useMatchLineup(lineupMatch?.id ?? null, country);
 
   // Sort roster: GK → DEF → MID → FWD, then by jersey number
   const roster = [...(cd?.roster ?? [])].sort((a, b) => {
@@ -259,8 +268,15 @@ export function CountryModal({ country, scores, allMatches, onClose }: Props) {
               </div>
             </div>
 
+            {squadView === "pitch" && lineupMatch && lineup && (
+              <p className="pitch-lineup-label">
+                {scores[lineupMatch.id]?.status === "in_progress" ? "🔴 Live lineup" :
+                 scores[lineupMatch.id]?.status === "finished" ? `Lineup vs ${lineupMatch.home === country ? lineupMatch.away : lineupMatch.home}` :
+                 `Expected lineup vs ${lineupMatch.home === country ? lineupMatch.away : lineupMatch.home}`}
+              </p>
+            )}
             {squadView === "pitch" ? (
-              <PitchView roster={roster} accentColor={accent} />
+              <PitchView roster={roster} accentColor={accent} lineup={lineup} />
             ) : squadView === "cards" ? (
               <div className="squad-grid">
                 {[...roster].sort((a, b) => parseInt(a.jersey) - parseInt(b.jersey)).map((p) => (
