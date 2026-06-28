@@ -12,8 +12,12 @@ interface Props {
 function lineGroup(pos: string): "G" | "D" | "M" | "F" {
   const p = pos.toUpperCase();
   if (p === "G" || p === "GK") return "G";
-  if (p.startsWith("D") || p.includes("B") || p.includes("CD") || p.includes("SW")) return "D";
-  if (p.startsWith("F") || p.includes("CF") || p.includes("ST") || p.includes("SS") || p.includes("WF")) return "F";
+  // Forwards: CF (centre forward), ST (striker), SS, WF, LF, RF, FW
+  if (p.startsWith("CF") || p.startsWith("ST") || p.startsWith("SS") || p.startsWith("WF") ||
+      p.startsWith("LF") || p.startsWith("RF") || p === "FW" || p.startsWith("F-")) return "F";
+  // Defenders: CD (centre-back), LB, RB, WB, SW, D-
+  if (p.startsWith("CD") || p.startsWith("LB") || p.startsWith("RB") || p.startsWith("WB") ||
+      p.startsWith("SW") || p === "D" || p.startsWith("D-")) return "D";
   return "M";
 }
 
