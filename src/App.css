@@ -37,6 +37,29 @@
   --glow-green: 0 0 0 3px rgba(34,197,94,.3);
 }
 
+[data-theme="light"] .team-name {
+  text-shadow: 0 0 6px rgba(255,255,255,.9), 0 0 16px rgba(255,255,255,.7);
+  color: var(--text-primary);
+}
+[data-theme="light"] .team.tracked .team-name {
+  color: #166534;
+}
+[data-theme="light"] .team-flag {
+  opacity: .09;
+}
+[data-theme="light"] .score-block,
+[data-theme="light"] .vs,
+[data-theme="light"] .score-num,
+[data-theme="light"] .score-sep {
+  color: var(--text-primary);
+}
+[data-theme="light"] .match-venue {
+  color: var(--text-muted);
+}
+[data-theme="light"] .potential .team-name {
+  color: var(--text-primary);
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
