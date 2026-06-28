@@ -805,6 +805,7 @@ details[open] .past-matches-summary::before { content: "▼ "; }
 /* ── View toggle + ICS export ────────────────────────────────────────────── */
 .view-toggle {
   display: flex;
+  align-items: stretch;
   gap: 6px;
   margin-bottom: 16px;
   flex-wrap: wrap;
@@ -838,16 +839,15 @@ details[open] .past-matches-summary::before { content: "▼ "; }
 
 /* ── Google Calendar sync ─────────────────────────────────────────────────── */
 .gcal-wrap {
+  position: relative;
   display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  align-items: stretch;
 }
 .gcal-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
+  padding: 7px 14px;
   border-radius: 6px;
   border: 1px solid rgba(255,255,255,0.18);
   background: #1a73e8;
@@ -875,8 +875,13 @@ details[open] .past-matches-summary::before { content: "▼ "; }
 }
 .gcal-disconnect:hover { color: var(--text-primary); }
 .gcal-lastsync {
-  font-size: .68rem;
+  font-size: .6rem;
   color: var(--text-muted);
+  position: absolute;
+  top: 100%;
+  left: 0;
+  white-space: nowrap;
+  margin-top: 2px;
 }
 .gcal-error {
   font-size: .7rem;

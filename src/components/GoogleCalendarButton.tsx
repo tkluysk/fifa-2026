@@ -12,7 +12,7 @@ interface Props {
 }
 
 export function GoogleCalendarButton({ matches, knockoutFixtures, selected, countryGroups, groupStandingsMap }: Props) {
-  const { hasClientId, status, error, lastSync, sync, disconnect } = useGoogleCalendar();
+  const { hasClientId, status, error, lastSync, sync } = useGoogleCalendar();
 
   if (!hasClientId) return null;
 
@@ -54,9 +54,6 @@ export function GoogleCalendarButton({ matches, knockoutFixtures, selected, coun
                                   "Sync to Google Cal"}
         </span>
       </button>
-      {status === "connected" || status === "done" ? (
-        <button className="gcal-disconnect" onClick={disconnect} title="Disconnect Google Calendar">✕</button>
-      ) : null}
       {lastSync && (
         <span className="gcal-lastsync">Last synced {lastSync.toLocaleTimeString()}</span>
       )}

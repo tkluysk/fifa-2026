@@ -75,72 +75,10 @@ export function resolveSlot(slot: string, gsMap: GroupStandingsMap): string[] {
 
 const ESPN_BASE      = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard";
 const ESPN_STANDINGS = "https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings";
-const TVNZ_SPORT     = "https://www.tvnz.co.nz/sport";
 const GROUP_RANGE    = "20260612-20260630";
 const KNOCKOUT_RANGE = "20260625-20260720"; // starts June 25 to catch early R32 matches
 const POLL_INTERVAL_LIVE_MS = 60 * 1000;
 const POLL_INTERVAL_IDLE_MS = 5 * 60 * 1000;
-
-// Normalise a team name to the slug-style tokens TVNZ uses:
-// "IR Iran" → "ir-iran", "Korea Republic" → "korea", "USA" → "usa", etc.
-function teamToSlugTokens(name: string): string[] {
-  const n = name.toLowerCase()
-    .replace(/\bkorea republic\b/, "korea")
-    .replace(/\bir iran\b/, "ir-iran")
-    .replace(/\bivory coast\b/, "ivory-coast")
-    .replace(/\bcape verde\b/, "cape-verde")
-    .replace(/\bsaudi arabia\b/, "saudi-arabia")
-    .replace(/\bsouth africa\b/, "southafrica")
-    .replace(/\bcongo dr\b/, "congodr")
-    .replace(/\bbosnia-herzegovina\b/, "bosniaherzegovina")
-    .replace(/\bcosta rica\b/, "costa-rica")
-    .replace(/ü/g, "u")   // Türkiye → turkiye
-    .replace(/ç/g, "c")   // Curaçao → curacao
-    .replace(/[^a-z0-9-]/g, "");
-  return [n];
-}
-
-// Build a TVNZ slug lookup: "home-slug|away-slug" → "/liveevent/..."
-// by fetching the TVNZ sport page and parsing liveevent hrefs
-async function fetchTvnzSlugMap(): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
-  try {
-    const res = await fetch(TVNZ_SPORT);
-    if (!res.ok) return map;
-    const html = await res.text();
-    // Extract all liveevent paths, e.g. /liveevent/argentina-v-algeria
-    const re = /\/liveevent\/([\w-]+)/g;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(html)) !== null) {
-      const slug = m[1];
-      // Must contain "-v-" to be a match event
-      const vIdx = slug.indexOf("-v-");
-      if (vIdx === -1) continue;
-      const homePart = slug.slice(0, vIdx);
-      // away part: strip trailing group identifiers like "-groupg", "-group-a"
-      const awayFull = slug.slice(vIdx + 3);
-      const awayPart = awayFull.replace(/-group[a-l]$/, "").replace(/-group-[a-l]$/, "").replace(/-r32$/, "").replace(/-r16$/, "");
-      map.set(`${homePart}|${awayPart}`, `/liveevent/${slug}`);
-    }
-  } catch { /* silently ignore */ }
-  return map;
-}
-
-// Given two canonical team names, look up the TVNZ path from the slug map
-function tvnzPathFromSlugMap(home: string, away: string, slugMap: Map<string, string>): string | null {
-  const [hSlug] = teamToSlugTokens(home);
-  const [aSlug] = teamToSlugTokens(away);
-  // Try exact home|away
-  const direct = slugMap.get(`${hSlug}|${aSlug}`);
-  if (direct) return direct;
-  // Try scanning all entries where both team tokens appear
-  for (const [key, path] of slugMap) {
-    const [kHome, kAway] = key.split("|");
-    if (kHome.includes(hSlug) && kAway.includes(aSlug)) return path;
-    if (kHome.includes(aSlug) && kAway.includes(hSlug)) return path; // reversed
-  }
-  return null;
-}
 
 function parseGroup(note: string): string {
   const m = note.match(/Group ([A-L])\b/);
@@ -414,11 +352,10 @@ export function useLiveData(): LiveData {
 
       let fetchedScores: Record<string, LiveScore> = {};
       try {
-        const [groupRes, knockoutRes, standingsRes, tvnzSlugMap] = await Promise.all([
+        const [groupRes, knockoutRes, standingsRes] = await Promise.all([
           fetch(`${ESPN_BASE}?dates=${GROUP_RANGE}&limit=200`),
           fetch(`${ESPN_BASE}?dates=${KNOCKOUT_RANGE}&limit=200`),
           fetch(ESPN_STANDINGS),
-          fetchTvnzSlugMap(),
         ]);
 
         if (cancelled) return;
@@ -431,18 +368,6 @@ export function useLiveData(): LiveData {
 
         const { matches: fetched, scores: parsed } = parseGroupMatches(groupJson.events ?? []);
         const knockouts = parseKnockoutFixtures(knockoutJson.events ?? []);
-
-        // Apply dynamic TVNZ links to group matches and knockout fixtures
-        for (const m of fetched) {
-          if (!m.tvnzPath) {
-            m.tvnzPath = tvnzPathFromSlugMap(m.home, m.away, tvnzSlugMap);
-          }
-        }
-        for (const f of knockouts) {
-          if (!f.tvnzPath) {
-            f.tvnzPath = tvnzPathFromSlugMap(f.home, f.away, tvnzSlugMap);
-          }
-        }
         fetchedScores = parsed;
 
         // Build group standings map + advanced/eliminated sets

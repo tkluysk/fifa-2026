@@ -115,5 +115,5 @@ export function useGoogleCalendar() {
     setLastSync(null);
   }, []);
 
-  return { hasClientId, status, error, lastSync, sync, disconnect };
+  return { hasClientId, status, error, lastSync, sync };
 }
