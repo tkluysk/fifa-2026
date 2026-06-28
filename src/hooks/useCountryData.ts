@@ -96,8 +96,10 @@ export interface Player {
   assists: number;
   yellowCards: number;
   redCards: number;
-  saves?: number;        // GK only
+  saves?: number;
   goalsConceded?: number;
+  shots?: number;
+  shotsOnTarget?: number;
 }
 
 export interface CountryData {
@@ -197,6 +199,8 @@ function parseRoster(raw: unknown): Player[] {
       redCards: parseStat(statsMap, "RC"),
       saves: parseStat(statsMap, "SV") || undefined,
       goalsConceded: parseStat(statsMap, "GA") || undefined,
+      shots: parseStat(statsMap, "SHOT") || undefined,
+      shotsOnTarget: parseStat(statsMap, "SOG") || undefined,
     };
   });
 }

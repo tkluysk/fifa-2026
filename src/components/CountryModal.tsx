@@ -279,6 +279,8 @@ export function CountryModal({ country, scores, allMatches, onClose }: Props) {
                     <Tip as="th" text="Appearances in this tournament">Apps</Tip>
                     <Tip as="th" text="Goals scored in this tournament (outfield players)">G</Tip>
                     <Tip as="th" text="Goal assists in this tournament (outfield players)">A</Tip>
+                    <Tip as="th" text="Shots attempted in this tournament (outfield players)">Sh</Tip>
+                    <Tip as="th" text="Shots on target in this tournament (outfield players)">SoT</Tip>
                     <Tip as="th" text="Saves made in this tournament (goalkeepers only)">Sv</Tip>
                     <Tip as="th" text="Goals conceded in this tournament (goalkeepers only)">GA</Tip>
                     <Tip as="th" text="Yellow cards received — two yellows = red card suspension">🟨</Tip>
@@ -301,6 +303,8 @@ export function CountryModal({ country, scores, allMatches, onClose }: Props) {
                       <td>{p.apps}</td>
                       <td>{p.positionAbbr !== "G" ? p.goals : "—"}</td>
                       <td>{p.positionAbbr !== "G" ? p.assists : "—"}</td>
+                      <td>{p.positionAbbr !== "G" ? (p.shots ?? 0) : "—"}</td>
+                      <td>{p.positionAbbr !== "G" ? (p.shotsOnTarget ?? 0) : "—"}</td>
                       <td>{p.positionAbbr === "G" ? (p.saves ?? 0) : "—"}</td>
                       <td>{p.positionAbbr === "G" ? (p.goalsConceded ?? 0) : "—"}</td>
                       <td className={p.yellowCards > 0 ? "squad-td-warn" : ""}>

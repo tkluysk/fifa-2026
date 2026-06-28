@@ -89,6 +89,8 @@ export function PlayerCard({ player, accentColor, compact }: Props) {
             <>
               <Stat label="G" value={player.goals} tooltip="Goals scored in this tournament" />
               <Stat label="A" value={player.assists} tooltip="Goal assists in this tournament" />
+              {(player.shots ?? 0) > 0 && <Stat label="Sh" value={player.shots ?? 0} tooltip="Shots attempted in this tournament" />}
+              {(player.shotsOnTarget ?? 0) > 0 && <Stat label="SoT" value={player.shotsOnTarget ?? 0} tooltip="Shots on target in this tournament" />}
             </>
           )}
           {player.yellowCards > 0 && <Stat label="🟨" value={player.yellowCards} tooltip="Yellow cards — two yellows = one-match ban" warn />}
