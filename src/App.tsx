@@ -68,7 +68,7 @@ export default function App() {
           <span className="ball">⚽</span> FIFA World Cup 2026
         </h1>
         <p className="subtitle">
-          Pick countries · see live scores
+          Pick countries &amp; plan game viewing
         </p>
         {liveError && <p className="live-status live-status--error">{liveError}</p>}
       </header>
