@@ -9,6 +9,7 @@ import { BracketView } from "./components/BracketView";
 import { GoogleCalendarButton } from "./components/GoogleCalendarButton";
 import { useLiveData, knockoutPathForCountry } from "./hooks/useLiveData";
 import { buildIcs, downloadIcs } from "./icsExport";
+import { flag } from "./countryInfo";
 import "./App.css";
 
 function countriesFromMatches(matches: import("./matches").Match[]): string[] {
@@ -183,21 +184,54 @@ export default function App() {
               if (group === "?") return null;
               const path = knockoutPathForCountry(country, group, knockoutFixtures);
               if (path.length === 0) return null;
+              const pastKO = path.filter(f => f.score?.status === "finished");
+              const upcomingKO = path.filter(f => f.score?.status !== "finished");
               return (
                 <li key={`ko-section-${country}`} className="potential-section">
                   <ul className="match-list" style={{ listStyle: "none", padding: 0 }}>
                     <li className="potential-divider">
-                      <span>Potential knockout games · {country}</span>
+                      <span>{flag(country)} {country} · knockout path</span>
                     </li>
-                    {path.map((f) => (
-                      <PotentialMatchCard
-                        key={`${f.id}-${country}`}
-                        fixture={f}
-                        country={country}
-                        groupStandingsMap={groupStandingsMap}
-                        onInfo={setInfoCountry}
-                      />
-                    ))}
+                    {pastKO.length > 0 && (
+                      <li className="past-matches-section">
+                        <details>
+                          <summary className="past-matches-summary">
+                            Past knockout games ({pastKO.length})
+                          </summary>
+                          <ul className="match-list past-matches-list">
+                            {pastKO.map((f) => (
+                              <PotentialMatchCard
+                                key={`${f.id}-${country}-past`}
+                                fixture={f}
+                                country={country}
+                                groupStandingsMap={groupStandingsMap}
+                                onInfo={setInfoCountry}
+                              />
+                            ))}
+                          </ul>
+                        </details>
+                      </li>
+                    )}
+                    {upcomingKO.length > 0 && (
+                      <li className="past-matches-section">
+                        <details>
+                          <summary className="past-matches-summary">
+                            Potential games ({upcomingKO.length})
+                          </summary>
+                          <ul className="match-list past-matches-list">
+                            {upcomingKO.map((f) => (
+                              <PotentialMatchCard
+                                key={`${f.id}-${country}`}
+                                fixture={f}
+                                country={country}
+                                groupStandingsMap={groupStandingsMap}
+                                onInfo={setInfoCountry}
+                              />
+                            ))}
+                          </ul>
+                        </details>
+                      </li>
+                    )}
                   </ul>
                 </li>
               );
