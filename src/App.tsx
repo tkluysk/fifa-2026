@@ -216,26 +216,15 @@ export default function App() {
                         </details>
                       </li>
                     )}
-                    {confirmedKO.length > 0 && (
-                      <li className="past-matches-section">
-                        <details>
-                          <summary className="past-matches-summary">
-                            Upcoming knockout games ({confirmedKO.length})
-                          </summary>
-                          <ul className="match-list past-matches-list">
-                            {confirmedKO.map((f) => (
-                              <PotentialMatchCard
-                                key={`${f.id}-${country}-conf`}
-                                fixture={f}
-                                country={country}
-                                groupStandingsMap={groupStandingsMap}
-                                onInfo={setInfoCountry}
-                              />
-                            ))}
-                          </ul>
-                        </details>
-                      </li>
-                    )}
+                    {confirmedKO.map((f) => (
+                      <PotentialMatchCard
+                        key={`${f.id}-${country}-conf`}
+                        fixture={f}
+                        country={country}
+                        groupStandingsMap={groupStandingsMap}
+                        onInfo={setInfoCountry}
+                      />
+                    ))}
                     {potentialKO.length > 0 && (
                       <li className="past-matches-section">
                         <details>
