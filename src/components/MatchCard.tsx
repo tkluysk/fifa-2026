@@ -1,7 +1,7 @@
 import type { Match } from "../matches";
 import { gcalUrl, tvnzUrl } from "../matches";
 import { flag, countryColor } from "../countryInfo";
-import type { LiveScore, GoalEvent } from "../hooks/useLiveData";
+import type { LiveScore, GoalEvent, MatchCard as CardEvent, SubEvent } from "../hooks/useLiveData";
 import { tempForCity } from "../cityTemps";
 
 function CalIcon() {
@@ -104,10 +104,12 @@ export function MatchCard({ match, tracked, score, onInfo, isNext }: Props) {
           <div className="score-block">
             {status !== "upcoming" && score ? (
               <>
-                <span className="score-num">{score.home}</span>
-                <span className="score-sep">–</span>
-                <span className="score-num">{score.away}</span>
                 {score.clock && status === "live" && <span className="score-clock">{score.clock}</span>}
+                <div className="score-nums">
+                  <span className="score-num">{score.home}</span>
+                  <span className="score-sep">–</span>
+                  <span className="score-num">{score.away}</span>
+                </div>
               </>
             ) : (
               <span className="vs">vs</span>
@@ -121,42 +123,112 @@ export function MatchCard({ match, tracked, score, onInfo, isNext }: Props) {
         </div>
       </div>
 
-      {/* Cards row — only shown when cards exist */}
-      {((score?.homeCards?.length ?? 0) > 0 || (score?.awayCards?.length ?? 0) > 0) && (
-        <div className="match-cards-row">
-          <div className="match-cards-team">
-            {score!.homeCards!.map((c, i) => (
-              <span key={i} className={`match-card-chip match-card-chip--${c.type}`} title={`${c.player} ${c.minute}`}>
-                {c.type === "yellow" ? "🟨" : c.type === "red" ? "🟥" : "🟨🟥"} <span className="match-card-player">{c.player}</span> <span className="match-card-min">{c.minute}</span>
-              </span>
-            ))}
-          </div>
-          <div className="match-cards-spacer" />
-          <div className="match-cards-team match-cards-team--away">
-            {score!.awayCards!.map((c, i) => (
-              <span key={i} className={`match-card-chip match-card-chip--${c.type}`} title={`${c.player} ${c.minute}`}>
-                <span className="match-card-min">{c.minute}</span> <span className="match-card-player">{c.player}</span> {c.type === "yellow" ? "🟨" : c.type === "red" ? "🟥" : "🟨🟥"}
-              </span>
-            ))}
-          </div>
-        </div>
+      {/* Unified timeline */}
+      {score && status !== "upcoming" && (
+        <MatchTimeline score={score} isLive={status === "live"} />
       )}
 
-      {/* Goals row */}
-      {((score?.homeGoals?.length ?? 0) > 0 || (score?.awayGoals?.length ?? 0) > 0) && (
-        <div className="match-goals-row">
-          <div className="match-goals-team">
-            {score!.homeGoals!.map((g, i) => <GoalChip key={i} goal={g} side="home" />)}
+      <p className="match-venue">📍 {match.venue}{tempForCity(match.venue) ? ` · 🌡 ${tempForCity(match.venue)}` : ""}</p>
+    </li>
+  );
+}
+
+type TimelineKind = "goal" | "card" | "sub";
+interface TimelineEvent {
+  minute: string;
+  minuteNum: number;
+  kind: TimelineKind;
+  side: "home" | "away";
+  goal?: GoalEvent;
+  card?: CardEvent;
+  sub?: SubEvent;
+}
+
+function parseMinute(m: string): number {
+  const n = parseInt(m, 10);
+  return isNaN(n) ? 999 : n;
+}
+
+function buildTimeline(score: LiveScore, isLive: boolean): TimelineEvent[] {
+  const events: TimelineEvent[] = [];
+
+  const addGoals = (goals: GoalEvent[] | undefined, side: "home" | "away") => {
+    (goals ?? []).forEach(g => events.push({ minute: g.minute, minuteNum: parseMinute(g.minute), kind: "goal", side, goal: g }));
+  };
+  addGoals(score.homeGoals, "home");
+  addGoals(score.awayGoals, "away");
+
+  if (isLive) {
+    const addCards = (cards: CardEvent[] | undefined, side: "home" | "away") => {
+      (cards ?? []).forEach(c => events.push({ minute: c.minute, minuteNum: parseMinute(c.minute), kind: "card", side, card: c }));
+    };
+    addCards(score.homeCards, "home");
+    addCards(score.awayCards, "away");
+
+    const addSubs = (subs: SubEvent[] | undefined, side: "home" | "away") => {
+      (subs ?? []).forEach(s => events.push({ minute: s.minute, minuteNum: parseMinute(s.minute), kind: "sub", side, sub: s }));
+    };
+    addSubs(score.homeSubs, "home");
+    addSubs(score.awaySubs, "away");
+  }
+
+  return events.sort((a, b) => a.minuteNum - b.minuteNum || (a.side === "home" ? -1 : 1));
+}
+
+function EventCell({ ev }: { ev: TimelineEvent }) {
+  if (ev.kind === "goal") {
+    const g = ev.goal!;
+    const label = g.ownGoal ? "OG" : g.penalty ? "P" : "";
+    const badge = label ? <span className="match-goal-type">{label}</span> : null;
+    return (
+      <span className="match-goal-chip">
+        {ev.side === "home"
+          ? <>⚽ <span className="match-goal-player">{g.player}</span>{badge} <span className="match-card-min">{g.minute}</span></>
+          : <><span className="match-card-min">{g.minute}</span> <span className="match-goal-player">{g.player}</span>{badge} ⚽</>}
+      </span>
+    );
+  }
+  if (ev.kind === "card") {
+    const c = ev.card!;
+    const icon = c.type === "yellow" ? "🟨" : c.type === "red" ? "🟥" : "🟨🟥";
+    return (
+      <span className={`match-card-chip match-card-chip--${c.type}`}>
+        {ev.side === "home"
+          ? <>{icon} <span className="match-card-player">{c.player}</span> <span className="match-card-min">{c.minute}</span></>
+          : <><span className="match-card-min">{c.minute}</span> <span className="match-card-player">{c.player}</span> {icon}</>}
+      </span>
+    );
+  }
+  if (ev.kind === "sub") {
+    const s = ev.sub!;
+    return (
+      <span className="match-sub-chip">
+        {ev.side === "home"
+          ? <>🔄 <span className="match-sub-on">{s.playerOn}</span> <span className="match-sub-off">↓{s.playerOff}</span> <span className="match-card-min">{s.minute}</span></>
+          : <><span className="match-card-min">{s.minute}</span> <span className="match-sub-off">{s.playerOff}↓</span> <span className="match-sub-on">{s.playerOn}</span> 🔄</>}
+      </span>
+    );
+  }
+  return null;
+}
+
+function MatchTimeline({ score, isLive }: { score: LiveScore; isLive: boolean }) {
+  const events = buildTimeline(score, isLive);
+  if (!events.length) return null;
+
+  return (
+    <div className="match-timeline">
+      {events.map((ev, i) => (
+        <div key={i} className={`match-timeline-row match-timeline-row--${ev.side}`}>
+          <div className="match-timeline-home">
+            {ev.side === "home" && <EventCell ev={ev} />}
           </div>
-          <div className="match-cards-spacer" />
-          <div className="match-goals-team match-goals-team--away">
-            {score!.awayGoals!.map((g, i) => <GoalChip key={i} goal={g} side="away" />)}
+          <div className="match-timeline-away">
+            {ev.side === "away" && <EventCell ev={ev} />}
           </div>
         </div>
-      )}
-
-      {/* Match stats row */}
-      {score?.stats && (score.stats.homeShots !== undefined || score.stats.homePossession !== undefined) && (
+      ))}
+      {isLive && score.stats && (score.stats.homeShots !== undefined || score.stats.homePossession !== undefined) && (
         <div className="match-stats-row">
           {score.stats.homePossession !== undefined && (
             <span className="match-stat-item">
@@ -181,23 +253,6 @@ export function MatchCard({ match, tracked, score, onInfo, isNext }: Props) {
           )}
         </div>
       )}
-
-      <p className="match-venue">📍 {match.venue}{tempForCity(match.venue) ? ` · 🌡 ${tempForCity(match.venue)}` : ""}</p>
-    </li>
-  );
-}
-
-function GoalChip({ goal, side }: { goal: GoalEvent; side: "home" | "away" }) {
-  const label = goal.ownGoal ? "OG" : goal.penalty ? "P" : "";
-  const icon = <span>⚽</span>;
-  const player = <span className="match-goal-player">{goal.player}</span>;
-  const badge = label ? <span className="match-goal-type">{label}</span> : null;
-  const minute = <span className="match-card-min">{goal.minute}</span>;
-  return (
-    <span className="match-goal-chip">
-      {side === "home"
-        ? <>{icon} {player}{badge} {minute}</>
-        : <>{minute} {player}{badge} {icon}</>}
-    </span>
+    </div>
   );
 }

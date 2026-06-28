@@ -21,6 +21,12 @@ export interface GoalEvent {
   penalty: boolean;
 }
 
+export interface SubEvent {
+  playerOn: string;
+  playerOff: string;
+  minute: string;
+}
+
 export interface MatchStats {
   homePossession?: number;
   awayPossession?: number;
@@ -39,6 +45,8 @@ export interface LiveScore {
   awayCards?: MatchCard[];
   homeGoals?: GoalEvent[];
   awayGoals?: GoalEvent[];
+  homeSubs?: SubEvent[];
+  awaySubs?: SubEvent[];
   stats?: MatchStats;
 }
 
@@ -102,11 +110,38 @@ export function resolveSlot(slot: string, gsMap: GroupStandingsMap): string[] {
 }
 
 const ESPN_BASE      = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard";
+const ESPN_SUMMARY   = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary";
 const ESPN_STANDINGS = "https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings";
 const GROUP_RANGE    = "20260612-20260630";
 const KNOCKOUT_RANGE = "20260625-20260720"; // starts June 25 to catch early R32 matches
 const POLL_INTERVAL_LIVE_MS = 60 * 1000;
 const POLL_INTERVAL_IDLE_MS = 5 * 60 * 1000;
+
+async function fetchSubsForEvent(eventId: string): Promise<{ homeSubs: SubEvent[]; awaySubs: SubEvent[] }> {
+  try {
+    const r = await fetch(`${ESPN_SUMMARY}?event=${eventId}`);
+    const d = await r.json();
+    const rosters = (d.rosters ?? []) as { homeAway: string; team: { id: string } }[];
+    const homeTeamId = rosters.find(r => r.homeAway === "home")?.team.id ?? "";
+    const keyEvents = (d.keyEvents ?? []) as Record<string, unknown>[];
+    const homeSubs: SubEvent[] = [];
+    const awaySubs: SubEvent[] = [];
+    for (const ev of keyEvents) {
+      if ((ev.type as Record<string, unknown>)?.type !== "substitution") continue;
+      const minute = (ev.clock as Record<string, unknown>)?.displayValue as string ?? "";
+      const participants = (ev.participants ?? []) as Record<string, unknown>[];
+      const a0 = (participants[0]?.athlete ?? {}) as Record<string, unknown>;
+      const a1 = (participants[1]?.athlete ?? {}) as Record<string, unknown>;
+      const playerOn = (a0.shortName as string) ?? (a0.displayName as string) ?? "";
+      const playerOff = (a1.shortName as string) ?? (a1.displayName as string) ?? "";
+      const teamId = (ev.team as Record<string, unknown>)?.id as string ?? "";
+      (teamId === homeTeamId ? homeSubs : awaySubs).push({ playerOn, playerOff, minute });
+    }
+    return { homeSubs, awaySubs };
+  } catch {
+    return { homeSubs: [], awaySubs: [] };
+  }
+}
 
 function parseGroup(note: string): string {
   const m = note.match(/Group ([A-L])\b/);
@@ -173,10 +208,13 @@ function parseGroupMatches(events: unknown[]): { matches: Match[]; scores: Recor
       const awayCards: MatchCard[] = [];
       const homeGoals: GoalEvent[] = [];
       const awayGoals: GoalEvent[] = [];
+      const homeSubs: SubEvent[] = [];
+      const awaySubs: SubEvent[] = [];
       for (const d of details) {
         const isYellow = !!(d.yellowCard);
         const isRed = !!(d.redCard);
         const isGoal = !!(d.scoringPlay);
+        const isSub = !!(d.substitution);
         const minute = ((d.clock as Record<string, unknown>)?.displayValue as string) ?? "";
         const athletes = (d.athletesInvolved ?? []) as Record<string, unknown>[];
         const player = (athletes[0]?.shortName as string) ?? (athletes[0]?.displayName as string) ?? "";
@@ -184,6 +222,10 @@ function parseGroupMatches(events: unknown[]): { matches: Match[]; scores: Recor
         if (isGoal) {
           const goal: GoalEvent = { player, minute, ownGoal: !!(d.ownGoal), penalty: !!(d.penaltyKick) };
           (teamId === homeTeamId ? homeGoals : awayGoals).push(goal);
+        } else if (isSub) {
+          const playerOff = (athletes[1]?.shortName as string) ?? (athletes[1]?.displayName as string) ?? "";
+          const sub: SubEvent = { playerOn: player, playerOff, minute };
+          (teamId === homeTeamId ? homeSubs : awaySubs).push(sub);
         } else if (isYellow || isRed) {
           const type: MatchCard["type"] = isRed && isYellow ? "yellow-red" : isRed ? "red" : "yellow";
           (teamId === homeTeamId ? homeCards : awayCards).push({ player, minute, type });
@@ -207,7 +249,7 @@ function parseGroupMatches(events: unknown[]): { matches: Match[]; scores: Recor
         }
       }
 
-      scores[id] = { home: homeScore, away: awayScore, status: liveStatus, clock, homeCards, awayCards, homeGoals, awayGoals, stats };
+      scores[id] = { home: homeScore, away: awayScore, status: liveStatus, clock, homeCards, awayCards, homeGoals, awayGoals, homeSubs, awaySubs, stats };
     }
   }
 
@@ -448,6 +490,18 @@ export function useLiveData(): LiveData {
         const knockouts = parseKnockoutFixtures(knockoutJson.events ?? []);
         fetchedScores = parsed;
 
+        // Fetch subs from summary for live (and recently finished) games
+        const liveIds = Object.entries(parsed)
+          .filter(([, s]) => s.status === "in_progress")
+          .map(([id]) => id);
+        if (liveIds.length > 0) {
+          const subsResults = await Promise.all(liveIds.map(id => fetchSubsForEvent(id)));
+          for (let i = 0; i < liveIds.length; i++) {
+            const id = liveIds[i];
+            fetchedScores[id] = { ...fetchedScores[id], ...subsResults[i] };
+          }
+        }
+
         // Build group standings map + advanced/eliminated sets
         const gsMap: GroupStandingsMap = {};
         const advanced = new Set<string>();
@@ -486,7 +540,7 @@ export function useLiveData(): LiveData {
         }
 
         setMatches(fetched);
-        setScores(parsed);
+        setScores(fetchedScores);
         setKnockoutFixtures(knockouts);
         setGroupStandingsMap(gsMap);
         setAdvancedSet(advanced);

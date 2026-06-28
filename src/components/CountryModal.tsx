@@ -86,7 +86,8 @@ export function CountryModal({ country, scores, allMatches, onClose }: Props) {
   const nextScheduled = upcomingMatches[0];
   const lineupMatch = liveMatch ?? lastFinished ?? nextScheduled ?? null;
 
-  const { lineup } = useMatchLineup(lineupMatch?.id ?? null, country);
+  const isLive = !!lineupMatch && scores[lineupMatch.id]?.status === "in_progress";
+  const { lineup } = useMatchLineup(lineupMatch?.id ?? null, country, isLive);
 
   // Sort roster: GK → DEF → MID → FWD, then by jersey number
   const roster = [...(cd?.roster ?? [])].sort((a, b) => {

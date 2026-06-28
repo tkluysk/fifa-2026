@@ -808,14 +808,20 @@ details[open] .past-matches-summary::before { content: "▼ "; }
 /* Centre score / vs column */
 .score-block {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
   background: var(--pitch-mid);
   border-radius: 8px;
   padding: 6px 10px;
   min-width: 72px;
   border: 1px solid var(--border);
+}
+.score-nums {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 .score-num {
   font-size: 1.5rem;
@@ -842,27 +848,32 @@ details[open] .past-matches-summary::before { content: "▼ "; }
   font-size: .6rem;
   color: var(--gold);
   font-weight: 700;
-  display: block;
   text-align: center;
-  margin-top: 1px;
 }
 
 /* Yellow/red card rows */
-.match-cards-row {
-  display: flex;
-  gap: 4px;
+/* Unified chronological timeline — goals (always), cards+subs (live only) */
+.match-timeline {
   margin-top: 6px;
   font-size: .65rem;
 }
-.match-cards-team {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  align-items: flex-end;
+.match-timeline-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 2px;
 }
-.match-cards-team--away { align-items: flex-start; }
-.match-cards-spacer { width: 8px; flex-shrink: 0; }
+.match-timeline-home {
+  display: flex;
+  justify-content: flex-end;
+  text-align: right;
+}
+.match-timeline-away {
+  display: flex;
+  justify-content: flex-start;
+  text-align: left;
+}
+
 .match-card-chip {
   display: inline-flex;
   align-items: center;
@@ -872,20 +883,6 @@ details[open] .past-matches-summary::before { content: "▼ "; }
 .match-card-player { font-weight: 600; color: var(--text-secondary); }
 .match-card-min { font-size: .58rem; color: var(--text-muted); }
 
-.match-goals-row {
-  display: flex;
-  gap: 4px;
-  margin-top: 4px;
-  font-size: .65rem;
-}
-.match-goals-team {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  align-items: flex-end;
-}
-.match-goals-team--away { align-items: flex-start; }
 .match-goal-chip {
   display: inline-flex;
   align-items: center;
@@ -902,6 +899,15 @@ details[open] .past-matches-summary::before { content: "▼ "; }
   border-radius: 3px;
   padding: 0 3px;
 }
+
+.match-sub-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-muted);
+}
+.match-sub-on { font-weight: 600; color: var(--text-secondary); }
+.match-sub-off { color: var(--text-muted); font-style: italic; font-size: .6rem; }
 
 .match-stats-row {
   display: flex;
