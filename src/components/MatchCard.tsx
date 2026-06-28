@@ -146,11 +146,11 @@ export function MatchCard({ match, tracked, score, onInfo, isNext }: Props) {
       {((score?.homeGoals?.length ?? 0) > 0 || (score?.awayGoals?.length ?? 0) > 0) && (
         <div className="match-goals-row">
           <div className="match-goals-team">
-            {score!.homeGoals!.map((g, i) => <GoalChip key={i} goal={g} />)}
+            {score!.homeGoals!.map((g, i) => <GoalChip key={i} goal={g} side="home" />)}
           </div>
           <div className="match-cards-spacer" />
           <div className="match-goals-team match-goals-team--away">
-            {score!.awayGoals!.map((g, i) => <GoalChip key={i} goal={g} />)}
+            {score!.awayGoals!.map((g, i) => <GoalChip key={i} goal={g} side="away" />)}
           </div>
         </div>
       )}
@@ -187,13 +187,17 @@ export function MatchCard({ match, tracked, score, onInfo, isNext }: Props) {
   );
 }
 
-function GoalChip({ goal }: { goal: GoalEvent }) {
+function GoalChip({ goal, side }: { goal: GoalEvent; side: "home" | "away" }) {
   const label = goal.ownGoal ? "OG" : goal.penalty ? "P" : "";
+  const icon = <span>⚽</span>;
+  const player = <span className="match-goal-player">{goal.player}</span>;
+  const badge = label ? <span className="match-goal-type">{label}</span> : null;
+  const minute = <span className="match-card-min">{goal.minute}</span>;
   return (
     <span className="match-goal-chip">
-      ⚽ <span className="match-goal-player">{goal.player}</span>
-      {label && <span className="match-goal-type">{label}</span>}
-      <span className="match-card-min">{goal.minute}</span>
+      {side === "home"
+        ? <>{icon} {player}{badge} {minute}</>
+        : <>{minute} {player}{badge} {icon}</>}
     </span>
   );
 }
