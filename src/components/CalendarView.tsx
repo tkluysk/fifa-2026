@@ -2,12 +2,11 @@ import type { Match } from "../matches";
 import { gcalUrl, tvnzUrl } from "../matches";
 import { flag, countryColor } from "../countryInfo";
 import type { LiveScore } from "../hooks/useLiveData";
-import type { PotentialMatch } from "../potentialMatches";
+import type { KnockoutFixture } from "../hooks/useLiveData";
 
 interface Props {
   matches: Match[];
-  potentialCountries: string[];
-  potentialMatches: PotentialMatch[];
+  knockoutFixtures: KnockoutFixture[];
   scores: Record<string, LiveScore>;
   tracked: string[];
   onInfo: (country: string) => void;
@@ -75,7 +74,7 @@ interface CalEntry {
   score?: { home: number; away: number };
 }
 
-export function CalendarView({ matches, potentialCountries, potentialMatches, scores, tracked, onInfo }: Props) {
+export function CalendarView({ matches, knockoutFixtures, scores, tracked, onInfo }: Props) {
   // Build a map: "YYYY-MM-DD" → CalEntry[]
   const dayMap: Record<string, CalEntry[]> = {};
 
@@ -101,40 +100,48 @@ export function CalendarView({ matches, potentialCountries, potentialMatches, sc
       status,
       href: gcalUrl(m),
       tvnz: tvnzUrl(m) ?? undefined,
-      score: live?.status !== "scheduled" ? { home: live.home, away: live.away } : undefined,
+      score: live && live.status !== "scheduled" ? { home: live.home, away: live.away } : undefined,
     });
   }
 
-  // Potential matches — one entry per country per option
-  for (const country of potentialCountries) {
-    for (const p of potentialMatches) {
-      for (const opt of p.options) {
-        const d = localDate(opt.startUtc);
-        const key = localDayKey(d);
-        const params = new URLSearchParams({
-          action: "TEMPLATE",
-          text: `⚽ [Potential] ${p.stage} — FIFA World Cup 2026`,
-          dates: [
-            opt.startUtc.replace(/[-:]/g, "").replace(".000", ""),
-            new Date(new Date(opt.startUtc).getTime() + 7200000).toISOString().replace(/[-:]/g, "").replace(".000", ""),
-          ].join("/"),
-          location: opt.venue,
-          details: `${country} — ${opt.condition}\nOpponent: ${opt.opponent}`,
-        });
-        add(key, {
-          id: `${p.id}-${country}-${opt.condition}`,
-          time: localTime(opt.startUtc),
-          homeTeam: country,
-          awayTeam: opt.opponent,
-          isPotential: true,
-          condition: opt.condition,
-          homeAccent: countryColor(country).accent,
-          awayAccent: "#aaa",
-          status: "upcoming",
-          href: `https://calendar.google.com/calendar/render?${params.toString()}`,
-        });
-      }
-    }
+  // Knockout fixtures — show for tracked teams
+  for (const f of knockoutFixtures) {
+    // Only include if a tracked team is directly named (not just a slot placeholder)
+    const trackedInFixture = tracked.filter(c => {
+      const cl = c.toLowerCase();
+      return f.home.toLowerCase() === cl || f.away.toLowerCase() === cl;
+    });
+    if (trackedInFixture.length === 0) continue;
+
+    const d = localDate(f.startUtc);
+    const key = localDayKey(d);
+    const live = f.score;
+    const status = live?.status === "finished" ? "past" : live?.status === "in_progress" ? "live" : "upcoming";
+
+    const country = trackedInFixture[0];
+    const opponent = f.home.toLowerCase() === country.toLowerCase() ? f.away : f.home;
+    const params = new URLSearchParams({
+      action: "TEMPLATE",
+      text: `⚽ [Potential] ${f.stage} — FIFA World Cup 2026`,
+      dates: [
+        f.startUtc.replace(/[-:]/g, "").replace(/\.\d{3}/, ""),
+        new Date(new Date(f.startUtc).getTime() + 7200000).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, ""),
+      ].join("/"),
+      location: f.venue,
+      details: `${country} vs ${opponent}`,
+    });
+    add(key, {
+      id: `${f.id}-${country}`,
+      time: localTime(f.startUtc),
+      homeTeam: country,
+      awayTeam: opponent,
+      isPotential: true,
+      homeAccent: countryColor(country).accent,
+      awayAccent: "#aaa",
+      status,
+      href: `https://calendar.google.com/calendar/render?${params.toString()}`,
+      score: live ? { home: f.home.toLowerCase() === country.toLowerCase() ? live.home : live.away, away: f.home.toLowerCase() === country.toLowerCase() ? live.away : live.home } : undefined,
+    });
   }
 
   // Months to render: June + July 2026

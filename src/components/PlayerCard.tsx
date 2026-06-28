@@ -87,8 +87,8 @@ export function PlayerCard({ player, accentColor, compact }: Props) {
               <Stat label="A" value={player.assists} tooltip="Goal assists in this tournament" />
             </>
           )}
-          {player.yellowCards > 0 && <Stat label="YC" value={player.yellowCards} tooltip="Yellow cards — two yellows = one-match ban" warn />}
-          {player.redCards > 0 && <Stat label="RC" value={player.redCards} tooltip="Red cards — automatic one-match suspension" danger />}
+          {player.yellowCards > 0 && <Stat label="🟨" value={player.yellowCards} tooltip="Yellow cards — two yellows = one-match ban" warn />}
+          {player.redCards > 0 && <Stat label="🟥" value={player.redCards} tooltip="Red cards — automatic one-match suspension" danger />}
         </div>
 
         {showBio && (

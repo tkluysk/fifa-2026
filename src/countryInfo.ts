@@ -62,6 +62,23 @@ export const COUNTRY_COLORS: Record<string, { bg: string; accent: string }> = {
   "Cape Verde":         { bg: "rgba(0,116,195,0.18)",   accent: "#0074C3" },
   "Saudi Arabia":       { bg: "rgba(0,106,78,0.18)",    accent: "#006A4E" },
   "Uruguay":            { bg: "rgba(0,56,168,0.18)",    accent: "#0038A8" },
+  "Algeria":            { bg: "rgba(0,98,51,0.18)",     accent: "#006233" },
+  "Argentina":          { bg: "rgba(116,172,223,0.20)", accent: "#74ACE0" },
+  "Austria":            { bg: "rgba(237,41,57,0.18)",   accent: "#ED2939" },
+  "Colombia":           { bg: "rgba(252,209,22,0.20)",  accent: "#B8960A" },
+  "Congo DR":           { bg: "rgba(0,103,163,0.18)",   accent: "#0067A3" },
+  "Croatia":            { bg: "rgba(171,0,45,0.18)",    accent: "#AB002D" },
+  "England":            { bg: "rgba(204,0,0,0.15)",     accent: "#CC0000" },
+  "France":             { bg: "rgba(0,35,149,0.18)",    accent: "#002395" },
+  "Ghana":              { bg: "rgba(0,100,0,0.18)",     accent: "#006400" },
+  "Iraq":               { bg: "rgba(0,122,61,0.18)",    accent: "#007A3D" },
+  "Jordan":             { bg: "rgba(0,93,170,0.18)",    accent: "#005DAA" },
+  "Norway":             { bg: "rgba(239,52,66,0.18)",   accent: "#EF3442" },
+  "Panama":             { bg: "rgba(218,41,28,0.18)",   accent: "#DA291C" },
+  "Portugal":           { bg: "rgba(0,102,0,0.18)",     accent: "#006600" },
+  "Senegal":            { bg: "rgba(0,161,62,0.18)",    accent: "#00A13E" },
+  "Uzbekistan":         { bg: "rgba(30,191,191,0.18)",  accent: "#1EBFBF" },
+  "Chile":              { bg: "rgba(212,16,16,0.18)",   accent: "#D41010" },
 };
 
 export function countryColor(team: string): { bg: string; accent: string } {
@@ -81,6 +98,13 @@ export const FLAGS: Record<string, string> = {
   "Belgium": "🇧🇪", "Egypt": "🇪🇬", "IR Iran": "🇮🇷",
   "New Zealand": "🇳🇿", "Spain": "🇪🇸", "Cape Verde": "🇨🇻",
   "Saudi Arabia": "🇸🇦", "Uruguay": "🇺🇾",
+  // Full 48-team field
+  "Algeria": "🇩🇿", "Argentina": "🇦🇷", "Austria": "🇦🇹",
+  "Colombia": "🇨🇴", "Congo DR": "🇨🇩", "Croatia": "🇭🇷",
+  "England": "🏴󠁧󠁢󠁥󠁮󠁧󠁿", "France": "🇫🇷", "Ghana": "🇬🇭",
+  "Iraq": "🇮🇶", "Jordan": "🇯🇴",
+  "Norway": "🇳🇴", "Panama": "🇵🇦", "Portugal": "🇵🇹",
+  "Senegal": "🇸🇳",
 };
 
 export function flag(team: string): string {

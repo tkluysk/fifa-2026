@@ -5,13 +5,12 @@ import { PotentialMatchCard } from "./components/PotentialMatchCard";
 import { CalendarView } from "./components/CalendarView";
 import { CountryPicker } from "./components/CountryPicker";
 import { CountryModal } from "./components/CountryModal";
-import { TournamentPath } from "./components/TournamentPath";
-import { useLiveData } from "./hooks/useLiveData";
-import { GROUP_G_POTENTIAL, COUNTRIES_WITH_POTENTIAL } from "./potentialMatches";
+import { BracketView } from "./components/BracketView";
+import { GoogleCalendarButton } from "./components/GoogleCalendarButton";
+import { useLiveData, knockoutPathForCountry } from "./hooks/useLiveData";
 import { buildIcs, downloadIcs } from "./icsExport";
 import "./App.css";
 
-// Derive country list from live schedule once loaded; fall back to static list
 function countriesFromMatches(matches: import("./matches").Match[]): string[] {
   if (!matches.length) return ALL_COUNTRIES;
   const set = new Set<string>();
@@ -19,30 +18,47 @@ function countriesFromMatches(matches: import("./matches").Match[]): string[] {
   return Array.from(set).sort();
 }
 
-const DEFAULT_COUNTRIES = ["New Zealand", "Belgium"];
+const LS_KEY = "fifa2026-selected";
+
+function loadSelected(): string[] {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
 
 export default function App() {
-  const [selected, setSelected] = useState<string[]>(DEFAULT_COUNTRIES);
+  const [selected, setSelected] = useState<string[]>(loadSelected);
   const [infoCountry, setInfoCountry] = useState<string | null>(null);
   const [view, setView] = useState<"list" | "calendar">("list");
   const handleInfo = useCallback((c: string) => setInfoCountry(c), []);
-  const { matches: allMatches, scores, loading: liveLoading, error: liveError } = useLiveData();
+  const { matches: allMatches, knockoutFixtures, scores, groupStandingsMap, advancedSet, eliminatedSet, loading: liveLoading, error: liveError } = useLiveData();
 
   const countries = countriesFromMatches(allMatches);
   const matches = matchesForCountries(allMatches, selected);
 
-  // One set of placeholder cards per selected country that has knockout path data
-  const potentialCountries = selected.filter((c) => COUNTRIES_WITH_POTENTIAL.has(c));
+  function groupForCountry(country: string): string {
+    const m = allMatches.find(m => m.home === country || m.away === country);
+    return m?.group ?? "?";
+  }
+
+  // Build group map for selected countries
+  const countryGroups: Record<string, string> = {};
+  for (const c of selected) countryGroups[c] = groupForCountry(c);
 
   function handleIcsDownload() {
-    const ics = buildIcs(matches, potentialCountries, GROUP_G_POTENTIAL);
+    const ics = buildIcs(matches, selected, knockoutFixtures);
     downloadIcs("fifa-2026.ics", ics);
   }
 
   function toggle(country: string) {
-    setSelected((prev) =>
-      prev.includes(country) ? prev.filter((c) => c !== country) : [...prev, country]
-    );
+    setSelected((prev) => {
+      const next = prev.includes(country) ? prev.filter((c) => c !== country) : [...prev, country];
+      localStorage.setItem(LS_KEY, JSON.stringify(next));
+      return next;
+    });
   }
 
   return (
@@ -52,7 +68,7 @@ export default function App() {
           <span className="ball">⚽</span> FIFA World Cup 2026
         </h1>
         <p className="subtitle">
-          Pick countries · see live scores · watch on TVNZ+
+          Pick countries · see live scores
         </p>
         {liveError && <p className="live-status live-status--error">{liveError}</p>}
       </header>
@@ -62,16 +78,30 @@ export default function App() {
         selected={selected}
         onToggle={toggle}
         onInfo={setInfoCountry}
+        advancedSet={advancedSet}
+        eliminatedSet={eliminatedSet}
       />
 
-      <TournamentPath countries={selected} />
+      <BracketView
+        fixtures={knockoutFixtures}
+        tracked={selected}
+        groupStandingsMap={groupStandingsMap}
+        countryGroups={countryGroups}
+      />
 
       <div className="view-toggle">
         <button className={`view-btn${view === "list" ? " view-btn--active" : ""}`} onClick={() => setView("list")}>≡ List</button>
         <button className={`view-btn${view === "calendar" ? " view-btn--active" : ""}`} onClick={() => setView("calendar")}>📅 Calendar</button>
         <button className="view-btn view-btn--ics" onClick={handleIcsDownload} disabled={matches.length === 0} title="Download as .ics — import into Google Cal, Apple Cal or Outlook to replace all entries">
-          ⬇ Export to Calendar
+          ⬇ Export .ics
         </button>
+        <GoogleCalendarButton
+          matches={matches}
+          knockoutFixtures={knockoutFixtures}
+          selected={selected}
+          countryGroups={countryGroups}
+          groupStandingsMap={groupStandingsMap}
+        />
       </div>
 
       <main className="main">
@@ -87,8 +117,7 @@ export default function App() {
         ) : view === "calendar" ? (
           <CalendarView
             matches={matches}
-            potentialCountries={potentialCountries}
-            potentialMatches={GROUP_G_POTENTIAL}
+            knockoutFixtures={knockoutFixtures}
             scores={scores}
             tracked={selected}
             onInfo={handleInfo}
@@ -97,55 +126,64 @@ export default function App() {
           <ul className="match-list">
             {(() => {
               const now = Date.now();
-              // Find indices of the two soonest upcoming/not-yet-started matches
-              const upcomingIndices = matches
-                .map((m, i) => ({ i, t: new Date(m.startUtc).getTime() }))
-                .filter(({ t }) => t > now)
-                .sort((a, b) => a.t - b.t)
-                .slice(0, 2)
-                .map(({ i }) => i);
-              const nextSet = new Set(upcomingIndices);
-              return matches.map((m, i) => (
-                <MatchCard
-                  key={m.id}
-                  match={m}
-                  tracked={selected}
-                  score={scores[m.id]}
-                  onInfo={setInfoCountry}
-                  isNext={nextSet.has(i)}
-                />
-              ));
+              const past = matches.filter(m => new Date(m.startUtc).getTime() <= now);
+              const upcoming = matches.filter(m => new Date(m.startUtc).getTime() > now);
+              const upcomingNextSet = new Set(
+                upcoming.slice(0, 2).map(m => m.id)
+              );
+              return (
+                <>
+                  {past.length > 0 && (
+                    <li className="past-matches-section">
+                      <details>
+                        <summary className="past-matches-summary">
+                          Past group matches ({past.length})
+                        </summary>
+                        <ul className="match-list past-matches-list">
+                          {past.map(m => (
+                            <MatchCard key={m.id} match={m} tracked={selected} score={scores[m.id]} onInfo={setInfoCountry} isNext={false} />
+                          ))}
+                        </ul>
+                      </details>
+                    </li>
+                  )}
+                  {upcoming.map(m => (
+                    <MatchCard key={m.id} match={m} tracked={selected} score={scores[m.id]} onInfo={setInfoCountry} isNext={upcomingNextSet.has(m.id)} />
+                  ))}
+                </>
+              );
             })()}
 
-            {potentialCountries.map((country) => (
-              <li key={`potential-section-${country}`} className="potential-section">
-                <ul className="match-list" style={{ listStyle: "none", padding: 0 }}>
-                  <li className="potential-divider">
-                    <span>Potential knockout games · {country}</span>
-                  </li>
-                  {GROUP_G_POTENTIAL.map((p) => (
-                    <PotentialMatchCard
-                      key={p.id}
-                      potential={p}
-                      country={country}
-                    />
-                  ))}
-                </ul>
-              </li>
-            ))}
+            {selected.map((country) => {
+              const group = groupForCountry(country);
+              if (group === "?") return null;
+              const path = knockoutPathForCountry(country, group, knockoutFixtures);
+              if (path.length === 0) return null;
+              return (
+                <li key={`ko-section-${country}`} className="potential-section">
+                  <ul className="match-list" style={{ listStyle: "none", padding: 0 }}>
+                    <li className="potential-divider">
+                      <span>Potential knockout games · {country}</span>
+                    </li>
+                    {path.map((f) => (
+                      <PotentialMatchCard
+                        key={`${f.id}-${country}`}
+                        fixture={f}
+                        country={country}
+                        groupStandingsMap={groupStandingsMap}
+                        onInfo={setInfoCountry}
+                      />
+                    ))}
+                  </ul>
+                </li>
+              );
+            })}
           </ul>
         )}
       </main>
 
-      <footer className="site-footer">
-        TVNZ holds exclusive NZ broadcast rights.{" "}
-        <a href="https://www.tvnz.co.nz/passes" target="_blank" rel="noreferrer">
-          TVNZ+ Event Pass
-        </a>{" "}
-        required for most matches. All Whites group games &amp; the Final are free on TVNZ 1.
-      </footer>
 
-      {infoCountry && (
+{infoCountry && (
         <CountryModal
           country={infoCountry}
           scores={scores}

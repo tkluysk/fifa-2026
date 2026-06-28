@@ -262,7 +262,7 @@ export function CountryModal({ country, scores, allMatches, onClose }: Props) {
               <PitchView roster={roster} accentColor={accent} />
             ) : squadView === "cards" ? (
               <div className="squad-grid">
-                {roster.map((p) => (
+                {[...roster].sort((a, b) => parseInt(a.jersey) - parseInt(b.jersey)).map((p) => (
                   <PlayerCard key={p.id} player={p} accentColor={accent} />
                 ))}
               </div>
@@ -280,8 +280,8 @@ export function CountryModal({ country, scores, allMatches, onClose }: Props) {
                     <Tip as="th" text="Goal assists in this tournament (outfield players)">A</Tip>
                     <Tip as="th" text="Saves made in this tournament (goalkeepers only)">Sv</Tip>
                     <Tip as="th" text="Goals conceded in this tournament (goalkeepers only)">GA</Tip>
-                    <Tip as="th" text="Yellow cards received — two yellows = red card suspension">YC</Tip>
-                    <Tip as="th" text="Red cards received — automatic one-match suspension">RC</Tip>
+                    <Tip as="th" text="Yellow cards received — two yellows = red card suspension">🟨</Tip>
+                    <Tip as="th" text="Red cards received — automatic one-match suspension">🟥</Tip>
                   </tr>
                 </thead>
                 <tbody>
@@ -302,8 +302,12 @@ export function CountryModal({ country, scores, allMatches, onClose }: Props) {
                       <td>{p.positionAbbr !== "G" ? p.assists : "—"}</td>
                       <td>{p.positionAbbr === "G" ? (p.saves ?? 0) : "—"}</td>
                       <td>{p.positionAbbr === "G" ? (p.goalsConceded ?? 0) : "—"}</td>
-                      <td className={p.yellowCards > 0 ? "squad-td-warn" : ""}>{p.yellowCards || "—"}</td>
-                      <td className={p.redCards > 0 ? "squad-td-danger" : ""}>{p.redCards || "—"}</td>
+                      <td className={p.yellowCards > 0 ? "squad-td-warn" : ""}>
+                        {p.yellowCards > 0 ? `🟨×${p.yellowCards}` : "—"}
+                      </td>
+                      <td className={p.redCards > 0 ? "squad-td-danger" : ""}>
+                        {p.redCards > 0 ? `🟥×${p.redCards}` : "—"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

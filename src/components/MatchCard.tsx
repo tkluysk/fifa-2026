@@ -2,6 +2,7 @@ import type { Match } from "../matches";
 import { gcalUrl, tvnzUrl } from "../matches";
 import { flag, countryColor } from "../countryInfo";
 import type { LiveScore } from "../hooks/useLiveData";
+import { tempForCity } from "../cityTemps";
 
 interface Props {
   match: Match;
@@ -107,7 +108,7 @@ export function MatchCard({ match, tracked, score, onInfo, isNext }: Props) {
         </a>
       </div>
 
-      <p className="match-venue">📍 {match.venue}</p>
+      <p className="match-venue">📍 {match.venue}{tempForCity(match.venue) ? ` · 🌡 ${tempForCity(match.venue)}` : ""}</p>
     </li>
   );
 }

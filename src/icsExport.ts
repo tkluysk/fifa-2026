@@ -1,6 +1,6 @@
 import type { Match } from "./matches";
 import { tvnzUrl } from "./matches";
-import type { PotentialMatch } from "./potentialMatches";
+import type { KnockoutFixture } from "./hooks/useLiveData";
 
 function icsDate(iso: string): string {
   return iso.replace(/[-:]/g, "").replace(/\.\d{3}/, "");
@@ -24,8 +24,8 @@ function vevent(lines: string[]): string {
 
 export function buildIcs(
   matches: Match[],
-  potentialCountries: string[],
-  potentialMatches: PotentialMatch[]
+  tracked: string[],
+  knockoutFixtures: KnockoutFixture[]
 ): string {
   const events: string[] = [];
 
@@ -50,21 +50,24 @@ export function buildIcs(
     );
   }
 
-  for (const country of potentialCountries) {
-    for (const p of potentialMatches) {
-      for (const opt of p.options) {
-        events.push(
-          vevent([
-            `UID:${uid(`${p.id}-${country}-${opt.condition}`)}`,
-            `DTSTART:${icsDate(opt.startUtc)}`,
-            `DTEND:${icsEnd(opt.startUtc)}`,
-            `SUMMARY:⚽ [Potential] ${escape(p.stage)} — ${escape(country)} vs ${escape(opt.opponent)}`,
-            `LOCATION:${escape(opt.venue)}`,
-            `DESCRIPTION:${escape(opt.condition)}\\nDate may change depending on group results.`,
-          ])
-        );
-      }
-    }
+  for (const f of knockoutFixtures) {
+    const country = tracked.find(c => {
+      const cl = c.toLowerCase();
+      return f.home.toLowerCase() === cl || f.away.toLowerCase() === cl;
+    });
+    if (!country) continue;
+
+    const opponent = f.home.toLowerCase() === country.toLowerCase() ? f.away : f.home;
+    events.push(
+      vevent([
+        `UID:${uid(`${f.id}-${country}`)}`,
+        `DTSTART:${icsDate(f.startUtc)}`,
+        `DTEND:${icsEnd(f.startUtc)}`,
+        `SUMMARY:⚽ [Potential] ${escape(f.stage)} — ${escape(country)} vs ${escape(opponent)}`,
+        `LOCATION:${escape(f.venue)}`,
+        `DESCRIPTION:${f.stage}\\nDate may change depending on group results.`,
+      ])
+    );
   }
 
   return [

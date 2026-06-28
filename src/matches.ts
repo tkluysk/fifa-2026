@@ -12,27 +12,15 @@ export const TVNZ_BASE = "https://www.tvnz.co.nz";
 
 // TVNZ paths keyed by "Home|Away" (normalised).
 // Everything else — times, venues, teams — comes from ESPN at runtime.
+// Static fallback paths — only for matches we've verified on TVNZ.
+// Everything else is discovered dynamically by scraping tvnz.co.nz/sport.
 const TVNZ_PATHS: Record<string, string> = {
-  "Mexico|South Africa":          "/liveevent/mexico-v-southafrica-group-a",
-  "Korea Republic|Czechia":       "/liveevent/korea-v-czechia-group-a",
-  "Canada|Bosnia-Herzegovina":    "/liveevent/canada-v-bosniaherzegovina-group-b",
-  "Qatar|Switzerland":            "/liveevent/qatar-v-swiss-group-b",
-  "Brazil|Morocco":               "/liveevent/brazil-v-morocco-groupc",
-  "Haiti|Scotland":               "/liveevent/haiti-v-scotland-groupc",
-  "USA|Paraguay":                 "/liveevent/usa-v-para-group-d",
-  "Australia|Türkiye":            "/liveevent/australia-v-turkiye-groupd",
-  "Germany|Curaçao":              "/liveevent/germany-v-curacao-groupe",
-  "Ivory Coast|Ecuador":          "/liveevent/ivory-coast-v-ecuador-groupe",
-  "Netherlands|Japan":            "/liveevent/netherlands-v-japan-groupf",
-  "Sweden|Tunisia":               "/liveevent/sweden-v-tunisia-groupf",
-  "Belgium|Egypt":                "/liveevent/belgium-v-egypt-groupg",
-  "IR Iran|New Zealand":          "/liveevent/ir-iran-v-new-zealand-groupg",
-  "Belgium|IR Iran":              "/liveevent/belgium-v-ir-iran",
-  "New Zealand|Egypt":            "/liveevent/new-zealand-v-egypt",
-  "Egypt|IR Iran":                "/liveevent/egypt-v-ir-iran",
-  "New Zealand|Belgium":          "/liveevent/new-zealand-v-belgium",
-  "Spain|Cape Verde":             "/liveevent/spain-v-cape-verde-grouph",
-  "Saudi Arabia|Uruguay":         "/liveevent/saudi-arabia-v-uruguay-grouph",
+  "IR Iran|New Zealand":  "/liveevent/ir-iran-v-new-zealand-groupg",
+  "Belgium|Egypt":        "/liveevent/belgium-v-egypt-groupg",
+  "New Zealand|Egypt":    "/liveevent/new-zealand-v-egypt",
+  "Belgium|IR Iran":      "/liveevent/belgium-v-ir-iran",
+  "Egypt|IR Iran":        "/liveevent/egypt-v-ir-iran",
+  "New Zealand|Belgium":  "/liveevent/new-zealand-v-belgium",
 };
 
 // ESPN uses different names for some teams — map to our canonical names
@@ -62,11 +50,7 @@ export function gcalUrl(match: Match): string {
   const start = match.startUtc.replace(/[-:]/g, "").replace(".000", "").replace(/\.\d+/, "");
   const endDate = new Date(new Date(match.startUtc).getTime() + 2 * 60 * 60 * 1000);
   const end = endDate.toISOString().replace(/[-:]/g, "").replace(".000", "").replace(/\.\d+/, "");
-  const stream = tvnzUrl(match);
-  const details = [
-    `Group ${match.group} — FIFA World Cup 2026`,
-    stream ? `Watch on TVNZ+: ${stream}` : "",
-  ].filter(Boolean).join("\n");
+  const details = `Group ${match.group} — FIFA World Cup 2026`;
   const params = new URLSearchParams({
     action: "TEMPLATE",
     text: `⚽ ${match.home} vs ${match.away}`,
