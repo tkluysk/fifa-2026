@@ -12,6 +12,19 @@ import { resolveSlot, knockoutPathForCountry } from "../hooks/useLiveData";
 import { flag, countryColor } from "../countryInfo";
 const TVNZ_BASE = "https://www.tvnz.co.nz";
 
+function CalIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <rect x="1" y="2.5" width="12" height="10.5" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
+      <line x1="1" y1="5.5" x2="13" y2="5.5" stroke="currentColor" strokeWidth="1.1"/>
+      <line x1="4" y1="1" x2="4" y2="4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      <line x1="10" y1="1" x2="10" y2="4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      <line x1="7" y1="8" x2="7" y2="11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      <line x1="5.5" y1="9.5" x2="8.5" y2="9.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
 function CandidateTooltip({ candidates, tracked }: { candidates: string[]; tracked?: string[] }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
@@ -90,6 +103,20 @@ function tvnzUrl(fixture: KnockoutFixture): string | null {
   return fixture.tvnzPath ? `${TVNZ_BASE}${fixture.tvnzPath}` : null;
 }
 
+function gcalUrl(f: KnockoutFixture): string {
+  const start = f.startUtc.replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const endDate = new Date(new Date(f.startUtc).getTime() + 2 * 60 * 60 * 1000);
+  const end = endDate.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: `⚽ ${f.stage} — FIFA World Cup 2026`,
+    dates: `${start}/${end}`,
+    location: f.venue,
+    details: `${f.home} vs ${f.away}\nFIFA World Cup 2026`,
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
 // ── Card dimensions (px) ──────────────────────────────────────────────────
 const CARD_W = 148;
 const CARD_H = 72;
@@ -126,7 +153,11 @@ export function BracketView({ fixtures, tracked, groupStandingsMap, countryGroup
       <div className="bracket-header">
         <p className="picker-label" style={{ margin: 0 }}>Road to the Final</p>
         <button className="bracket-toggle-btn" onClick={() => setShowFull(v => !v)}>
-          {showFull ? "↙ My countries" : "⊞ Full bracket"}
+          {showFull ? (
+            <><svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style={{verticalAlign:"middle",marginRight:4}}><path d="M1 1h4v4H1zM7 1h4v4H7zM1 7h4v4H1z" fill="currentColor" opacity=".5"/><path d="M7 9h5M9.5 6.5v5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>My countries</>
+          ) : (
+            <><svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style={{verticalAlign:"middle",marginRight:4}}><rect x="1" y="1" width="4" height="4" rx=".5" fill="currentColor" opacity=".6"/><rect x="7" y="1" width="4" height="4" rx=".5" fill="currentColor" opacity=".6"/><rect x="1" y="7" width="4" height="4" rx=".5" fill="currentColor" opacity=".6"/><rect x="7" y="7" width="4" height="4" rx=".5" fill="currentColor" opacity=".6"/></svg>Full bracket</>
+          )}
         </button>
       </div>
 
@@ -450,6 +481,9 @@ function FullCard({ fixture, highlighted, accent, gsMap, tracked }: {
       <div className="bracket-full-footer">
         <span className="bracket-full-date">{nzt}</span>
         {tvnz && <a className="bracket-flow-tvnz" href={tvnz} target="_blank" rel="noreferrer">📺</a>}
+        <a className="bracket-cal-btn" href={gcalUrl(fixture)} target="_blank" rel="noreferrer" title="Add to Google Calendar">
+          <CalIcon />
+        </a>
       </div>
     </div>
   );

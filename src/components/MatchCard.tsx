@@ -4,6 +4,19 @@ import { flag, countryColor } from "../countryInfo";
 import type { LiveScore } from "../hooks/useLiveData";
 import { tempForCity } from "../cityTemps";
 
+function CalIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <rect x="1" y="2.5" width="12" height="10.5" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
+      <line x1="1" y1="5.5" x2="13" y2="5.5" stroke="currentColor" strokeWidth="1.1"/>
+      <line x1="4" y1="1" x2="4" y2="4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      <line x1="10" y1="1" x2="10" y2="4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      <line x1="7" y1="8" x2="7" y2="11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      <line x1="5.5" y1="9.5" x2="8.5" y2="9.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
 interface Props {
   match: Match;
   tracked: string[];
@@ -76,8 +89,7 @@ export function MatchCard({ match, tracked, score, onInfo, isNext }: Props) {
           <a className="btn-tvnz-inline" href={stream} target="_blank" rel="noreferrer">📺 TVNZ+</a>
         )}
         <a className="btn-cal-side" href={cal} target="_blank" rel="noreferrer" title="Add to Google Calendar">
-          <span className="btn-cal-icon">+</span>
-          <span className="btn-cal-label">Cal</span>
+          <CalIcon />
         </a>
       </div>
 
