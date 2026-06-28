@@ -1,5 +1,5 @@
 import type { Player } from "../hooks/useCountryData";
-import type { MatchLineup } from "../hooks/useMatchLineup";
+import type { LineupEntry, MatchLineup } from "../hooks/useMatchLineup";
 import { PlayerCard } from "./PlayerCard";
 
 interface Props {
@@ -21,19 +21,30 @@ function lineGroup(pos: string): "G" | "D" | "M" | "F" {
   return "M";
 }
 
+function stubPlayer(entry: LineupEntry): Player {
+  return {
+    id: entry.athleteId,
+    name: entry.name,
+    shortName: entry.name,
+    jersey: entry.jersey,
+    position: entry.positionAbbr,
+    positionAbbr: lineGroup(entry.positionAbbr),
+    age: 0, nationality: "", clubTeam: "",
+    status: "active", injuryNote: "",
+    apps: 0, goals: 0, assists: 0, yellowCards: 0, redCards: 0,
+  };
+}
+
 function groupByLineup(roster: Player[], lineup: MatchLineup): {
   gk: Player[]; def: Player[]; mid: Player[]; fwd: Player[]; bench: Player[];
 } {
   const byId = new Map(roster.map(p => [p.id, p]));
-  const starters: Player[] = [];
   const subs: Player[] = [];
   const starterGroups: Record<"G" | "D" | "M" | "F", Player[]> = { G: [], D: [], M: [], F: [] };
 
   for (const entry of lineup.players) {
-    const player = byId.get(entry.athleteId);
-    if (!player) continue;
+    const player = byId.get(entry.athleteId) ?? stubPlayer(entry);
     if (entry.starter) {
-      starters.push(player);
       starterGroups[lineGroup(entry.positionAbbr)].push(player);
     } else {
       subs.push(player);

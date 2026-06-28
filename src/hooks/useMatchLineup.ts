@@ -2,10 +2,12 @@ import { useState, useEffect } from "react";
 
 export interface LineupEntry {
   athleteId: string;
+  name: string;
+  jersey: string;
   starter: boolean;
   subbedIn: boolean;
   subbedOut: boolean;
-  positionAbbr: string; // e.g. "G", "CD-L", "LB", "CM", "AM-L", "CF"
+  positionAbbr: string;
 }
 
 export interface MatchLineup {
@@ -36,6 +38,7 @@ export function useMatchLineup(eventId: string | null, teamName: string) {
           team: { displayName: string };
           formation?: string;
           roster: {
+            jersey?: string;
             starter: boolean;
             subbedIn?: boolean;
             subbedOut?: boolean;
@@ -62,6 +65,8 @@ export function useMatchLineup(eventId: string | null, teamName: string) {
           teamDisplayName: teamRoster.team.displayName,
           players: teamRoster.roster.map(p => ({
             athleteId: p.athlete.id,
+            name: p.athlete.displayName,
+            jersey: p.jersey ?? "",
             starter: p.starter,
             subbedIn: p.subbedIn ?? false,
             subbedOut: p.subbedOut ?? false,
