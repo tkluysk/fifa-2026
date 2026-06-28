@@ -470,10 +470,16 @@ body {
   color: var(--green);
   font-weight: 700;
 }
+.bracket-flow-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: auto;
+}
 .bracket-flow-tvnz {
   font-size: .7rem;
   text-decoration: none;
-  align-self: flex-end;
 }
 .bracket-flow-empty {
   flex: 1;

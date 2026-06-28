@@ -266,7 +266,12 @@ function FlowCard({ fixture, country, gsMap, accent }: {
           <span className="bracket-flow-tbd">TBD</span>
         )}
       </div>
-      {tvnz && <a className="bracket-flow-tvnz" href={tvnz} target="_blank" rel="noreferrer">📺</a>}
+      <div className="bracket-flow-footer">
+        {tvnz && <a className="bracket-flow-tvnz" href={tvnz} target="_blank" rel="noreferrer">📺</a>}
+        <a className="bracket-cal-btn" href={gcalUrl(fixture)} target="_blank" rel="noreferrer" title="Add to Google Calendar">
+          <CalIcon size={11} />
+        </a>
+      </div>
     </div>
   );
 }
