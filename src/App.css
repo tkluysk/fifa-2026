@@ -59,6 +59,9 @@
 [data-theme="light"] .potential .team-name {
   color: var(--text-primary);
 }
+[data-theme="light"] .highlight-good { color: #166534; }
+[data-theme="light"] .highlight-bad  { color: #991b1b; }
+[data-theme="light"] .highlight-neutral { color: var(--text-secondary); }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
