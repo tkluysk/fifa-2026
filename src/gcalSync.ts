@@ -45,23 +45,28 @@ function matchToEvent(m: Match): GEvent | null {
   };
 }
 
+const TBD_SLOT = /(group|round of|winner|place|runner|loser|quarterfinal|semifinal|third)/i;
+
 function knockoutToEvent(f: KnockoutFixture, gsMap: GroupStandingsMap): GEvent | null {
   if (!f.startUtc || !isValidDate(f.startUtc)) return null;
   const resolveTeam = (slot: string) => {
-    const known = !/(group|round of|winner|place|runner|loser|quarterfinal|semifinal|third)/i.test(slot);
-    if (known) return slot;
+    if (!TBD_SLOT.test(slot)) return { name: slot, tbd: false };
     const candidates = resolveSlot(slot, gsMap);
-    return candidates.length > 0 ? candidates.join("/") : slot;
+    return candidates.length > 0
+      ? { name: candidates.join("/"), tbd: true }
+      : { name: slot, tbd: true };
   };
   const home = resolveTeam(f.home);
   const away = resolveTeam(f.away);
+  const isPotential = home.tbd || away.tbd;
   return {
-    summary: `⚽ [Potential] ${f.stage} — ${home} vs ${away}`,
+    summary: `⚽ ${isPotential ? "[Potential] " : ""}${f.stage} — ${home.name} vs ${away.name}`,
     location: f.venue,
-    description: `${f.stage} — FIFA World Cup 2026\nMatch time may change based on group results.`,
+    description: isPotential
+      ? `${f.stage} — FIFA World Cup 2026\nMatch time may change based on group results.`
+      : `${f.stage} — FIFA World Cup 2026`,
     start: { dateTime: new Date(f.startUtc).toISOString(), timeZone: "UTC" },
     end: { dateTime: endTime(f.startUtc), timeZone: "UTC" },
-    colorId: "5",
   };
 }
 
