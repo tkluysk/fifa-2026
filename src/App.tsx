@@ -77,6 +77,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="site-header">
+        <a href="/privacy.html" target="_blank" rel="noreferrer" className="header-privacy-link">Privacy Policy</a>
         <button
           className="theme-toggle"
           onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}

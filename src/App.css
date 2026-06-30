@@ -106,6 +106,8 @@ body {
   font-size: .92rem;
   letter-spacing: .02em;
 }
+.subtitle-link { color: var(--text-muted); text-decoration: underline; }
+.subtitle-link:hover { color: var(--green); }
 .live-status {
   margin-top: 6px;
   font-size: .78rem;
@@ -2280,6 +2282,17 @@ th.tip-host .tip-bubble::before { left: auto; right: 9px; transform: none; }
 }
 
 /* ── Theme toggle ─────────────────────────────────────────────────────────── */
+.header-privacy-link {
+  position: absolute;
+  top: 20px;
+  left: 16px;
+  font-size: .7rem;
+  color: var(--text-muted);
+  opacity: .45;
+  text-decoration: none;
+}
+.header-privacy-link:hover { opacity: 1; text-decoration: underline; }
+
 .theme-toggle {
   position: absolute;
   top: 16px;
