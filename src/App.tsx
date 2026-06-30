@@ -175,8 +175,6 @@ export default function App() {
 
               // Knockout path
               const path = group !== "?" ? knockoutPathForCountry(country, group, knockoutFixtures) : [];
-              const isTBD = (name: string) => /(group|round of|winner|place|runner|loser|quarterfinal|semifinal)/i.test(name);
-              const opponentOf = (f: typeof path[0]) => f.home.toLowerCase() === country.toLowerCase() ? f.away : f.home;
               const pastKO = path.filter(f => f.score?.status === "finished");
               const upcomingKO = path.filter(f => f.score?.status !== "finished");
               // "Confirmed" = country definitely plays this game (all prior path games finished).

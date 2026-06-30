@@ -114,9 +114,6 @@ export function CountryModal({ country, scores, allMatches, knockoutFixtures, on
             ? (nextScheduled.home === country ? nextScheduled.away : nextScheduled.home)
             : null;
 
-  // Keep legacy alias for the group-game label fallback (used below)
-  const lineupMatch = !liveKoFixture && !lastFinishedKoFixture ? (liveGroupMatch ?? lastFinishedGroup ?? nextScheduled ?? null) : null;
-
   const { lineup } = useMatchLineup(lineupEventId, country, lineupIsLive);
 
   // Sort roster: GK → DEF → MID → FWD, then by jersey number

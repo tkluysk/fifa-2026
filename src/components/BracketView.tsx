@@ -285,10 +285,6 @@ const SLOT_GAP = 10;   // vertical gap between adjacent cards in R32
 const SLOT_H = CARD_H + SLOT_GAP; // height of one R32 slot
 
 
-function cardTop(slotIndex: number, span: number = 1): number {
-  const blockH = span * SLOT_H;
-  return slotIndex * SLOT_H + (blockH - CARD_H) / 2;
-}
 
 interface MatchLayout {
   fixture: KnockoutFixture;
