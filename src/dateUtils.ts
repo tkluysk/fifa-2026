@@ -13,5 +13,5 @@ export function formatLocalTime(iso: string): string {
     minute: "2-digit",
     hour12: true,
   }).format(new Date(iso));
-  return `${date} ${userCity()}`;
+  return `${date} (${userCity()} time)`;
 }

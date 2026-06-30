@@ -760,18 +760,20 @@ details[open] .ko-details-summary::before { content: "▼"; }
   position: absolute;
   top: -1px;
   left: -1px;
-  border-radius: var(--radius) 0 var(--radius) 0;
-  padding: 3px 8px;
-  font-size: .65rem;
+  /* top-left matches card corner; top-right & bottom-left hug card edges; bottom-right is the only free corner */
+  border-radius: var(--radius) 3px 10px 0;
+  padding: 4px 10px;
+  font-size: .68rem;
   font-weight: 800;
-  letter-spacing: .06em;
+  letter-spacing: .07em;
   line-height: 1;
   z-index: 1;
+  box-shadow: 1px 1px 5px rgba(0,0,0,.15);
 }
 .card-corner-badge--next {
-  background: var(--gold-dim);
-  color: var(--gold);
-  border: 1px solid var(--gold);
+  background: var(--gold);
+  color: #000;
+  border: none;
 }
 .card-corner-badge--live {
   background: var(--red);
