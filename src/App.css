@@ -774,9 +774,16 @@ details[open] .ko-details-summary::before { content: "▼"; }
   box-shadow: 0 1px 4px rgba(0,0,0,.2);
   white-space: nowrap;
 }
+.match-card .card-corner-badge {
+  font-size: .97rem;
+  padding: 5px 11px;
+  top: -13px;
+  left: 10px;
+  border-radius: 8px;
+}
 .card-corner-badge--next {
-  background: var(--gold);
-  color: #000;
+  background: #000;
+  color: #fff;
 }
 .card-corner-badge--live {
   background: var(--red);

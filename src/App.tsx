@@ -74,22 +74,26 @@ export default function App() {
     });
   }
 
-  // Single NEXT badge across the whole selection — earliest upcoming confirmed game
+  // Single NEXT badge — earliest game that hasn't started yet (by time, not just API status)
   const globalNextGameId = (() => {
+    const now = Date.now();
     const candidates: { id: string; t: number }[] = [];
     for (const c of selected) {
       const g = groupForCountry(c);
       const gms = allMatches.filter(m => m.home === c || m.away === c);
-      const liveIds = new Set(gms.filter(m => scores[m.id]?.status === "in_progress").map(m => m.id));
       gms
-        .filter(m => !liveIds.has(m.id) && scores[m.id]?.status !== "finished" && (scores[m.id]?.status === "scheduled" || !scores[m.id]))
+        .filter(m => {
+          const s = scores[m.id]?.status;
+          if (s === "in_progress" || s === "finished") return false;
+          return new Date(m.startUtc).getTime() > now; // not started yet by clock
+        })
         .forEach(m => candidates.push({ id: m.id, t: new Date(m.startUtc).getTime() }));
       if (g !== "?") {
         const p = knockoutPathForCountry(c, g, knockoutFixtures);
         const upKO = p.filter(f => f.score?.status !== "finished");
         upKO
           .filter((f) => p.slice(0, p.indexOf(f)).every(prev => prev.score?.status === "finished"))
-          .filter(f => f.score?.status !== "in_progress")
+          .filter(f => f.score?.status !== "in_progress" && new Date(f.startUtc).getTime() > now)
           .forEach(f => candidates.push({ id: f.id, t: new Date(f.startUtc).getTime() }));
       }
     }
