@@ -737,6 +737,8 @@ details[open] .ko-details-summary::before { content: "▼"; }
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow: visible;
+  padding-top: 10px; /* room for overhanging corner badges */
 }
 .empty {
   text-align: center;
@@ -760,22 +762,21 @@ details[open] .ko-details-summary::before { content: "▼"; }
 /* past opacity is set inline per-card; upcoming cards use full colour */
 .card-corner-badge {
   position: absolute;
-  top: -1px;
-  left: -1px;
-  /* top-left matches card corner; top-right & bottom-left hug card edges; bottom-right is the only free corner */
-  border-radius: var(--radius) 3px 10px 0;
-  padding: 4px 10px;
-  font-size: .68rem;
+  top: -9px;
+  left: 8px;
+  border-radius: 6px;
+  padding: 3px 7px;
+  font-size: .65rem;
   font-weight: 800;
-  letter-spacing: .07em;
+  letter-spacing: .06em;
   line-height: 1;
-  z-index: 1;
-  box-shadow: 1px 1px 5px rgba(0,0,0,.15);
+  z-index: 2;
+  box-shadow: 0 1px 4px rgba(0,0,0,.2);
+  white-space: nowrap;
 }
 .card-corner-badge--next {
   background: var(--gold);
   color: #000;
-  border: none;
 }
 .card-corner-badge--live {
   background: var(--red);
