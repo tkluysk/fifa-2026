@@ -5,7 +5,7 @@
  */
 
 import { useState } from "react";
-import Anthropic, { type WebSearchTool20250305 } from "@anthropic-ai/sdk";
+import Anthropic from "@anthropic-ai/sdk";
 import type { GroupStandings } from "./useCountryData";
 import type { LiveScore } from "./useLiveData";
 import type { Match } from "../matches";
@@ -206,11 +206,11 @@ export function useCountryAnalysis() {
         prompt = buildCountryPrompt(subject, ctx);
       }
 
-      const webSearch: WebSearchTool20250305 = {
+      const webSearch = {
         type: "web_search_20250305",
         name: "web_search",
         max_uses: 2,
-      };
+      } as const;
 
       const msg = await client.messages.create({
         model: ANALYSIS_MODEL,
