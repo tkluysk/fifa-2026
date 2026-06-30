@@ -3,7 +3,7 @@ import { upstreamTeams } from "../hooks/useLiveData";
 import { countryColor, flag } from "../countryInfo";
 import { tempForCity } from "../cityTemps";
 import { MatchTimeline } from "./MatchCard";
-import { formatLocalDate, userCity, isNewZealand } from "../dateUtils";
+import { formatSmartDate, userCity, isNewZealand } from "../dateUtils";
 
 function CalIcon() {
   return (
@@ -75,7 +75,7 @@ export function PotentialMatchCard({ fixture, country, groupStandingsMap, knocko
   const awayColor = opponentKnown ? countryColor(opponentSlot) : { bg: "var(--surface)", accent: "var(--border)" };
   const tvnzLink = fixture.tvnzPath ? `${TVNZ_BASE}${fixture.tvnzPath}` : null;
 
-  const localDate = formatLocalDate(fixture.startUtc);
+  const localDate = formatSmartDate(fixture.startUtc);
   const city = userCity();
 
   const isLive = fixture.score?.status === "in_progress";

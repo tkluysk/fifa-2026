@@ -1303,127 +1303,88 @@ details[open] .ko-details-summary::before { content: "▼"; }
 }
 
 /* ── Calendar ─────────────────────────────────────────────────────────────── */
-.cal-wrap { display: flex; flex-direction: column; gap: 32px; padding: 1rem; }
+/* ── Calendar view ───────────────────────────────────────────────────────── */
+.cal-outer {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: 80vh;
+  padding: 0.5rem 0.75rem 1.5rem;
+}
 .cal-tz {
-  font-size: .78rem;
+  font-size: .72rem;
   color: var(--text-muted);
-  text-align: center;
-  margin-bottom: -10px;
+  margin-bottom: 10px;
 }
-
-/* ── Week time-grid ──────────────────────────────────────────────────────── */
-.cal-week-section { }
-
-.cal-time-grid {
+.cal-grid {
   display: grid;
-  gap: 4px 6px;
-  align-items: stretch;
+  gap: 6px 10px;
+  align-items: start;
+  width: max-content;
+  min-width: 100%;
 }
-
-.cal-grid-corner { } /* top-left empty cell */
-
+.cal-week-label {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: var(--pitch);
+  font-size: .68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
 .cal-grid-day-header {
+  position: sticky;
+  top: 26px;
+  z-index: 3;
+  background: var(--pitch);
   font-size: .72rem;
   font-weight: 700;
   color: var(--text-muted);
   text-align: center;
-  padding: 4px 2px;
+  padding: 2px 4px 4px;
   border-bottom: 1px solid var(--border);
+  white-space: nowrap;
 }
 .cal-grid-day-header--today { color: var(--gold); }
-
 .cal-grid-time {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--pitch);
   font-size: .65rem;
   font-weight: 700;
   color: var(--text-muted);
   text-align: right;
-  padding: 6px 4px 0 0;
+  padding: 14px 8px 0 0;
   white-space: nowrap;
-  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
 }
-
 .cal-grid-cell {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 4px 0;
-  border-top: 1px solid var(--border);
-  min-height: 36px;
+  gap: 8px;
+  padding: 2px 0;
 }
-
-.cal-entry {
-  background: var(--pitch-mid);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--green);
-  border-radius: 4px;
-  padding: 4px 6px;
-  font-size: .7rem;
+.cal-week-sep {
+  background: var(--border-strong);
+  align-self: stretch;
+}
+.cal-card-wrap {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
-.cal-entry--potential {
-  opacity: .72;
-  border-style: dashed;
-  border-left-style: solid;
-}
-.cal-entry--live {
-  border-color: var(--red) !important;
-  box-shadow: 0 0 0 2px rgba(239,68,68,.2);
-}
-.cal-entry--past { opacity: .5; }
-
-.cal-live-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--red);
-  flex-shrink: 0;
-  animation: pulse 1.5s infinite;
-}
-.cal-entry-condition {
+.cal-card-stage {
   font-size: .6rem;
-  color: var(--text-muted);
-  font-style: italic;
-}
-.cal-entry-teams {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-.cal-team {
-  font-size: .7rem;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: pointer;
-  color: var(--text);
-}
-.cal-team:hover { color: var(--green); }
-.cal-team--tracked { color: var(--green); }
-.cal-entry-score {
-  font-size: .65rem;
-  color: var(--text-muted);
   font-weight: 700;
-  align-self: center;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+  padding: 0 2px;
 }
-.cal-entry-actions {
-  display: flex;
-  gap: 4px;
-  margin-top: 2px;
-}
-.cal-btn {
-  font-size: .62rem;
-  font-weight: 700;
-  padding: 2px 5px;
-  border-radius: 3px;
-  text-decoration: none;
-  border: none;
-  cursor: pointer;
-}
-.cal-btn--tvnz { background: #00437a; color: #fff; }
-.cal-btn--gcal { background: var(--green-dim); color: var(--green); border: 1px solid var(--green); }
 
 /* ── Potential match cards ───────────────────────────────────────────────── */
 .potential-divider {
@@ -2347,10 +2308,11 @@ th.tip-host .tip-bubble::before { left: auto; right: 9px; transform: none; }
 /* ── AI disclaimer ─────────────────────────────────────────────────────────── */
 .ai-disclaimer {
   margin-top: 8px;
-  font-size: .68rem;
+  font-size: .6rem;
   color: var(--text-muted);
   font-style: italic;
-  opacity: .8;
+  opacity: .55;
+  letter-spacing: .01em;
 }
 
 /* ── Footer ──────────────────────────────────────────────────────────────── */

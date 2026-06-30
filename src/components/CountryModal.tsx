@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { flag } from "../countryInfo";
 import type { LiveScore, KnockoutFixture } from "../hooks/useLiveData";
 import type { Match } from "../matches";
-import { useCountryAnalysis } from "../hooks/useCountryAnalysis";
+import { useCountryAnalysis, ANALYSIS_MODEL } from "../hooks/useCountryAnalysis";
 import { useCountryData } from "../hooks/useCountryData";
 import { useMatchLineup } from "../hooks/useMatchLineup";
 import { PlayerCard } from "./PlayerCard";
@@ -311,10 +311,10 @@ export function CountryModal({ country, scores, allMatches, knockoutFixtures, on
           ) : cd?.loading || analysisLoading ? (
             <div className="analysis-loading"><span className="spinner" /> Generating analysis…</div>
           ) : analysisError ? (
-            <p className="analysis-error">⚠️ {analysisError}</p>
+            <p className="analysis-error">{analysisError}</p>
           ) : analysis ? (
             <div className="analysis-content">
-              <p className="ai-disclaimer">AI-generated · may contain inaccuracies</p>
+              <p className="ai-disclaimer">{ANALYSIS_MODEL} · AI-generated · may contain inaccuracies</p>
               <p className="analysis-summary">{analysis.summary}</p>
 
               <h4>Highlights</h4>

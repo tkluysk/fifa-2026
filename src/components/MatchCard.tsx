@@ -3,7 +3,7 @@ import { gcalUrl, tvnzUrl } from "../matches";
 import { flag, countryColor } from "../countryInfo";
 import type { LiveScore, GoalEvent, MatchCard as CardEvent, SubEvent } from "../hooks/useLiveData";
 import { tempForCity } from "../cityTemps";
-import { formatLocalDate, userCity, isNewZealand } from "../dateUtils";
+import { formatSmartDate, userCity, isNewZealand } from "../dateUtils";
 
 function CalIcon() {
   return (
@@ -69,7 +69,7 @@ export function MatchCard({ match, tracked, score, onInfo, isNext }: Props) {
       <div className="match-meta">
         <span className="group-badge">Group {match.group}</span>
         {status === "past" && <span className="past-badge">FT</span>}
-        <span className="match-date--next">{formatLocalDate(match.startUtc)}</span>
+        <span className="match-date--next">{formatSmartDate(match.startUtc)}</span>
         <span className="match-tz-label">{userCity()} time</span>
         {stream && isNewZealand() && (
           <a className="btn-tvnz-inline" href={stream} target="_blank" rel="noreferrer">📺 TVNZ+</a>

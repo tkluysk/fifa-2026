@@ -1,16 +1,15 @@
 /**
- * Generates AI analysis via Claude Haiku.
+ * Generates AI analysis via Claude Sonnet.
  * Fetches live ESPN standings + scores immediately before calling Claude
  * so the analysis is always grounded in up-to-the-minute data.
  */
 
 import { useState } from "react";
-import Anthropic from "@anthropic-ai/sdk";
+import Anthropic, { type WebSearchTool20250305 } from "@anthropic-ai/sdk";
 import type { GroupStandings } from "./useCountryData";
 import type { LiveScore } from "./useLiveData";
 import type { Match } from "../matches";
 import { normaliseTeamName } from "../matches";
-import { formatLocalTime } from "../dateUtils";
 
 export interface AnalysisHighlight {
   type: "good" | "bad" | "neutral";
@@ -24,8 +23,10 @@ export interface Analysis {
   prognosis: string;
 }
 
+export const ANALYSIS_MODEL = "claude-sonnet-4-6";
+
 const ESPN_STANDINGS = "https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings";
-const ESPN_SCOREBOARD = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=20260612-20260630&limit=200";
+const ESPN_SCOREBOARD = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=20260612-20260720&limit=200";
 
 interface LiveContext {
   groupName: string;
@@ -68,7 +69,9 @@ async function fetchLiveContext(country: string): Promise<LiveContext> {
   }
 
   // ── Parse scoreboard for this country's matches ──────────────────────────
-  const matchLines: string[] = [];
+  const groupLines: string[] = [];
+  const knockoutLines: string[] = [];
+
   for (const event of scoreJson.events ?? []) {
     const comp = event.competitions?.[0];
     if (!comp) continue;
@@ -87,26 +90,37 @@ async function fetchLiveContext(country: string): Promise<LiveContext> {
     const clock = comp.status?.displayClock as string | undefined;
     const period = comp.status?.period as number | undefined;
 
-    // Detect round from ESPN notes (e.g. "Group F", "Round of 32", "Quarter-final")
+    const altNote = (comp.altGameNote as string) ?? "";
     const noteHeadline: string = (comp.notes as { headline?: string }[] | undefined)?.[0]?.headline ?? "";
-    const isKnockout = !noteHeadline.toLowerCase().startsWith("group");
-    const roundLabel = noteHeadline || (isKnockout ? "Knockout" : "Group stage");
+    const isKnockout = !altNote.match(/Group [A-L]/i) && !noteHeadline.toLowerCase().startsWith("group");
+    const roundLabel = noteHeadline || altNote || (isKnockout ? "Knockout round" : "Group stage");
 
+    let line: string;
     if (completed) {
-      matchLines.push(`  [${roundLabel}] ${home} ${homeScore}–${awayScore} ${away} [FINAL]`);
+      line = `  ${home} ${homeScore}–${awayScore} ${away} [FINAL] (${roundLabel})`;
     } else if (state === "in") {
-      const min = clock ? ` (${clock}${period === 2 ? " ET" : ""})` : "";
-      matchLines.push(`  [${roundLabel}] ${home} ${homeScore}–${awayScore} ${away} [LIVE${min}]`);
+      const min = clock ? ` ${clock}${period === 2 ? " ET" : ""}` : "";
+      line = `  ${home} ${homeScore}–${awayScore} ${away} [LIVE${min}] (${roundLabel})`;
     } else {
       const dt = new Date(event.date as string);
-      matchLines.push(`  [${roundLabel}] ${home} vs ${away} — scheduled ${formatLocalTime(dt.toISOString())}`);
+      line = `  ${home} vs ${away} — ${dt.toUTCString()} (${roundLabel})`;
     }
+
+    (isKnockout ? knockoutLines : groupLines).push(line);
   }
+
+  const matchResults = [
+    "GROUP STAGE MATCHES:",
+    groupLines.length ? groupLines.join("\n") : "  None yet",
+    "",
+    "KNOCKOUT STAGE MATCHES:",
+    knockoutLines.length ? knockoutLines.join("\n") : "  None yet",
+  ].join("\n");
 
   return {
     groupName,
     standings: standingsStr || "  Not available",
-    matchResults: matchLines.join("\n") || "  No matches found",
+    matchResults,
   };
 }
 
@@ -114,32 +128,21 @@ function buildCountryPrompt(
   country: string,
   ctx: LiveContext,
 ): string {
-  return `You are a sharp FIFA World Cup 2026 analyst. Generate a concise, honest, opinionated analysis for ${country} in the 2026 FIFA World Cup.
+  return `You are a sharp FIFA World Cup 2026 analyst. Generate a concise, honest, opinionated analysis for ${country} in the 2026 FIFA World Cup. Use web search to find the latest news, injury updates, and match reports before writing — your analysis should reflect real current information, not just the data below.
 
 TODAY: ${new Date().toUTCString()} — the data below is live and up-to-the-minute.
 
 ${ctx.groupName.toUpperCase()} STANDINGS (current):
 ${ctx.standings}
 
-${country.toUpperCase()}'S MATCHES (current):
+${country.toUpperCase()}'S MATCHES (current — split by stage):
 ${ctx.matchResults}
 
-IMPORTANT TOURNAMENT RULES:
-- This is the 2026 FIFA World Cup with 48 teams in 12 groups of 4.
-- The top 2 from each group advance automatically (24 teams).
-- The best 8 third-place finishers (out of 12) also advance — so finishing 3rd does NOT mean elimination.
-- Only 4th-place finishers are definitely eliminated once their group is complete.
-- A team finishing 3rd is still alive until all groups are complete and the 8 best 3rd-place teams are confirmed.
-- Any match marked [LIVE] is in progress RIGHT NOW — factor in the current scoreline as provisional.
-- Do NOT invent or assume results not listed above.
-- Be mathematically precise about advancement scenarios.
-- Standings listed include all completed goals and points.
-- CRITICAL: Each match line is prefixed with its ROUND in brackets, e.g. [Group F] or [Round of 32].
-  - [Group X] matches are GROUP STAGE games that affect standings.
-  - [Round of 32], [Round of 16], [Quarter-final], [Semi-final], [Final], [3rd Place] matches are KNOCKOUT STAGE games.
-  - A KNOCKOUT game is NOT a group stage dead-rubber. It is a knockout elimination match. Never describe a knockout game as a dead-rubber, irrelevant, or group-related.
-  - If the team is playing or has played a knockout match, they have already advanced from the group stage.
-  - The "What They Need" section should describe knockout stage objectives, not group-stage qualification math, if they are already in the knockout round.
+RULES:
+- 48 teams, 12 groups of 4. Top 2 advance; best 8 third-placers also advance. Only 4th is out.
+- Matches are split into GROUP STAGE and KNOCKOUT STAGE sections below. Never confuse the two.
+- [FINAL] = confirmed result. [LIVE] = in progress, score provisional.
+- Do not invent results. Do not discuss group qualification if the team is already in the knockout stage.
 
 Return ONLY valid JSON (no markdown, no commentary) in exactly this structure:
 {
@@ -203,17 +206,29 @@ export function useCountryAnalysis() {
         prompt = buildCountryPrompt(subject, ctx);
       }
 
+      const webSearch: WebSearchTool20250305 = {
+        type: "web_search_20250305",
+        name: "web_search",
+        max_uses: 2,
+      };
+
       const msg = await client.messages.create({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 800,
+        model: ANALYSIS_MODEL,
+        max_tokens: 1200,
+        tools: [webSearch],
         messages: [{ role: "user", content: prompt }],
       });
 
-      const raw = (msg.content[0] as { text: string }).text;
+      // Response includes web_search_tool_result blocks (server-side) + text blocks — extract text only
+      const raw = msg.content
+        .filter((b): b is Anthropic.TextBlock => b.type === "text")
+        .map(b => b.text)
+        .join("");
       const jsonStr = raw.replace(/^```(?:json)?\n?/i, "").replace(/\n?```$/, "").trim();
       setData(JSON.parse(jsonStr) as Analysis);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to generate analysis.");
+      console.error("[analysis error]", e);
+      setError("Analysis unavailable. Try again later.");
     } finally {
       setLoading(false);
     }

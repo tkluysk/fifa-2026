@@ -657,9 +657,9 @@ export function useLiveData(): LiveData {
     let cancelled = false;
     let timerId: ReturnType<typeof setTimeout> | null = null;
 
-    async function fetchAll(background = false) {
+    async function fetchAll(background = false, retryDelayMs?: number) {
       if (!background) setLoading(true);
-      setError(null);
+      if (!background) setError(null);
 
       let fetchedScores: Record<string, LiveScore> = {};
       try {
@@ -670,6 +670,13 @@ export function useLiveData(): LiveData {
         ]);
 
         if (cancelled) return;
+
+        // Detect rate-limiting — back off and keep showing existing data
+        if (groupRes.status === 429 || knockoutRes.status === 429 || standingsRes.status === 429) {
+          const delay = retryDelayMs ?? POLL_INTERVAL_IDLE_MS * 2;
+          if (!cancelled) timerId = setTimeout(() => fetchAll(true, Math.min(delay * 2, 10 * 60 * 1000)), delay);
+          return;
+        }
 
         const groupJson = await groupRes.json();
         const knockoutJson = await knockoutRes.json();

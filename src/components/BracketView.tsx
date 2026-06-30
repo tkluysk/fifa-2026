@@ -10,7 +10,26 @@ import { createPortal } from "react-dom";
 import type { KnockoutFixture, GroupStandingsMap } from "../hooks/useLiveData";
 import { upstreamTeams, knockoutPathForCountry } from "../hooks/useLiveData";
 import { flag, countryColor } from "../countryInfo"; // countryColor used in FocusedBracket
-import { formatLocalDate, isNewZealand } from "../dateUtils";
+import { isNewZealand } from "../dateUtils";
+
+function bracketDate(iso: string): string {
+  const d = new Date(iso);
+  const gameDay = d.toLocaleDateString("sv-SE");
+  const todayDay = new Date().toLocaleDateString("sv-SE");
+  const tomorrowDay = new Date(Date.now() + 864e5).toLocaleDateString("sv-SE");
+  const mins = d.getMinutes();
+  const timeStr = new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    ...(mins !== 0 ? { minute: "2-digit" } : {}),
+    hour12: true,
+  }).format(d);
+  if (gameDay === todayDay) return `Today, ${timeStr}`;
+  if (gameDay === tomorrowDay) return `Tomorrow, ${timeStr}`;
+  const datePart = new Intl.DateTimeFormat(undefined, {
+    weekday: "short", day: "numeric", month: "short",
+  }).format(d);
+  return `${datePart}, ${timeStr}`;
+}
 const TVNZ_BASE = "https://www.tvnz.co.nz";
 
 function CalIcon({ size = 13 }: { size?: number }) {
@@ -245,7 +264,7 @@ function FlowCard({ fixture, country, gsMap, accent, knockoutFixtures, isNext }:
   const won = finished && myScore !== undefined && theirScore !== undefined && myScore > theirScore;
   const lost = finished && myScore !== undefined && theirScore !== undefined && myScore < theirScore;
 
-  const nzt = formatLocalDate(fixture.startUtc);
+  const nzt = bracketDate(fixture.startUtc);
 
   const tvnz = tvnzUrl(fixture);
 
@@ -516,7 +535,7 @@ function FullBracket({ byStage, trackedIds, tracked, gsMap, knockoutFixtures, ne
   );
 }
 
-function FullCard({ fixture, highlighted, gsMap, tracked, knockoutFixtures, isNext }: {
+export function FullCard({ fixture, highlighted, gsMap, tracked, knockoutFixtures, isNext }: {
   fixture: KnockoutFixture;
   highlighted: boolean;
   gsMap: GroupStandingsMap;
@@ -530,7 +549,7 @@ function FullCard({ fixture, highlighted, gsMap, tracked, knockoutFixtures, isNe
   const awayWon = finished && (fixture.score!.away > fixture.score!.home);
   const tvnz = tvnzUrl(fixture);
 
-  const nzt = formatLocalDate(fixture.startUtc);
+  const nzt = bracketDate(fixture.startUtc);
 
   return (
     <div

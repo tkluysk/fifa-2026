@@ -14,6 +14,7 @@ declare global {
             client_id: string;
             scope: string;
             callback: (resp: { access_token?: string; expires_in?: number; error?: string }) => void;
+            error_callback?: (err: { type: string; message?: string }) => void;
           }) => { requestAccessToken: () => void };
         };
       };
@@ -78,6 +79,10 @@ export function useGoogleCalendar() {
           setStatus("connected");
           resolve(resp.access_token);
         },
+        error_callback: (err) => {
+          // Fired when user closes the popup or denies access
+          reject(new Error(err.type));
+        },
       });
       client.requestAccessToken();
     });
@@ -96,11 +101,14 @@ export function useGoogleCalendar() {
       setLastSync(new Date());
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      // Token expired mid-sync — clear and ask user to retry
       if (msg.includes("401")) {
         clearToken();
         setStatus("idle");
         setError("Session expired — click to reconnect");
+      } else if (msg === "popup_closed" || msg === "access_denied" || msg === "user_cancel") {
+        // User dismissed the auth popup — silently reset
+        setStatus("idle");
+        setError(null);
       } else {
         setStatus("error");
         setError(msg);

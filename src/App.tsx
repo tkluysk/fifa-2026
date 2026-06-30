@@ -184,6 +184,9 @@ export default function App() {
               knockoutFixtures={knockoutFixtures}
               scores={scores}
               tracked={selected}
+              countryGroups={countryGroups}
+              groupStandingsMap={groupStandingsMap}
+              nextGameId={globalNextGameId}
               onInfo={handleInfo}
             />
           </details>
@@ -216,7 +219,7 @@ export default function App() {
               });
 
               return (
-                <section key={country} className="country-section">
+                <section key={country} id={`match-country-${country.toLowerCase().replace(/\s+/g, "-")}`} className="country-section">
                   <div className="country-section-header" style={{ borderLeftColor: accent }}>
                     <span className="country-section-flag">{flag(country)}</span>
                     <span className="country-section-name">{country}</span>
