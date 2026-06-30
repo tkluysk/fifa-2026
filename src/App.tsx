@@ -74,6 +74,28 @@ export default function App() {
     });
   }
 
+  // Single NEXT badge across the whole selection — earliest upcoming confirmed game
+  const globalNextGameId = (() => {
+    const candidates: { id: string; t: number }[] = [];
+    for (const c of selected) {
+      const g = groupForCountry(c);
+      const gms = allMatches.filter(m => m.home === c || m.away === c);
+      const liveIds = new Set(gms.filter(m => scores[m.id]?.status === "in_progress").map(m => m.id));
+      gms
+        .filter(m => !liveIds.has(m.id) && scores[m.id]?.status !== "finished" && (scores[m.id]?.status === "scheduled" || !scores[m.id]))
+        .forEach(m => candidates.push({ id: m.id, t: new Date(m.startUtc).getTime() }));
+      if (g !== "?") {
+        const p = knockoutPathForCountry(c, g, knockoutFixtures);
+        const upKO = p.filter(f => f.score?.status !== "finished");
+        upKO
+          .filter((f) => p.slice(0, p.indexOf(f)).every(prev => prev.score?.status === "finished"))
+          .filter(f => f.score?.status !== "in_progress")
+          .forEach(f => candidates.push({ id: f.id, t: new Date(f.startUtc).getTime() }));
+      }
+    }
+    return candidates.sort((a, b) => a.t - b.t)[0]?.id ?? null;
+  })();
+
   return (
     <div className="app">
       <header className="site-header">
@@ -178,9 +200,6 @@ export default function App() {
               const path = group !== "?" ? knockoutPathForCountry(country, group, knockoutFixtures) : [];
               const pastKO = path.filter(f => f.score?.status === "finished");
               const upcomingKO = path.filter(f => f.score?.status !== "finished");
-              // "Confirmed" = country definitely plays this game (all prior path games finished).
-              // Opponent may still be TBD — that's fine, show candidates.
-              // "Potential" = country might not even get here (a prior path game is unfinished).
               const confirmedKO = upcomingKO.filter((f) => {
                 const idx = path.indexOf(f);
                 return path.slice(0, idx).every(g => g.score?.status === "finished");
@@ -189,15 +208,6 @@ export default function App() {
                 const idx = path.indexOf(f);
                 return !path.slice(0, idx).every(g => g.score?.status === "finished");
               });
-
-              // Next game = earliest non-live, non-finished confirmed game (group or KO)
-              const upcomingGroupGames = upcomingGroup.filter(m => scores[m.id]?.status !== "in_progress");
-              const upcomingConfirmedKO = confirmedKO.filter(f => f.score?.status !== "in_progress");
-              const candidates = [
-                ...upcomingGroupGames.map(m => ({ id: m.id, t: new Date(m.startUtc).getTime(), kind: "group" as const })),
-                ...upcomingConfirmedKO.map(f => ({ id: f.id, t: new Date(f.startUtc).getTime(), kind: "ko" as const })),
-              ].sort((a, b) => a.t - b.t);
-              const nextGameId = candidates[0]?.id ?? null;
 
               return (
                 <section key={country} className="country-section">
@@ -213,14 +223,14 @@ export default function App() {
                     {liveGroup.length > 0 && (
                       <ul className="match-list ko-confirmed-list">
                         {liveGroup.map(m => (
-                          <MatchCard key={m.id} match={m} tracked={selected} score={scores[m.id]} onInfo={setInfoCountry} isNext={m.id === nextGameId} />
+                          <MatchCard key={m.id} match={m} tracked={selected} score={scores[m.id]} onInfo={setInfoCountry} isNext={m.id === globalNextGameId} />
                         ))}
                       </ul>
                     )}
                     {upcomingGroup.length > 0 && (
                       <ul className="match-list ko-confirmed-list">
                         {upcomingGroup.map(m => (
-                          <MatchCard key={m.id} match={m} tracked={selected} score={scores[m.id]} onInfo={setInfoCountry} isNext={m.id === nextGameId} />
+                          <MatchCard key={m.id} match={m} tracked={selected} score={scores[m.id]} onInfo={setInfoCountry} isNext={m.id === globalNextGameId} />
                         ))}
                       </ul>
                     )}
@@ -257,7 +267,7 @@ export default function App() {
                       {confirmedKO.length > 0 && (
                         <ul className="match-list ko-confirmed-list">
                           {confirmedKO.map(f => (
-                            <PotentialMatchCard key={`${f.id}-${country}-conf`} fixture={f} country={country} groupStandingsMap={groupStandingsMap} knockoutFixtures={knockoutFixtures} onInfo={setInfoCountry} isNext={f.id === nextGameId} />
+                            <PotentialMatchCard key={`${f.id}-${country}-conf`} fixture={f} country={country} groupStandingsMap={groupStandingsMap} knockoutFixtures={knockoutFixtures} onInfo={setInfoCountry} isNext={f.id === globalNextGameId} />
                           ))}
                         </ul>
                       )}

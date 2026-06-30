@@ -3,7 +3,7 @@ import { upstreamTeams } from "../hooks/useLiveData";
 import { countryColor, flag } from "../countryInfo";
 import { tempForCity } from "../cityTemps";
 import { MatchTimeline } from "./MatchCard";
-import { formatLocalTime } from "../dateUtils";
+import { formatLocalDate, userCity } from "../dateUtils";
 
 function CalIcon() {
   return (
@@ -75,7 +75,8 @@ export function PotentialMatchCard({ fixture, country, groupStandingsMap, knocko
   const awayColor = opponentKnown ? countryColor(opponentSlot) : { bg: "var(--surface)", accent: "var(--border)" };
   const tvnzLink = fixture.tvnzPath ? `${TVNZ_BASE}${fixture.tvnzPath}` : null;
 
-  const nzt = formatLocalTime(fixture.startUtc);
+  const localDate = formatLocalDate(fixture.startUtc);
+  const city = userCity();
 
   const isLive = fixture.score?.status === "in_progress";
   const isScored = fixture.score && (fixture.score.status === "finished" || isLive);
@@ -99,7 +100,8 @@ export function PotentialMatchCard({ fixture, country, groupStandingsMap, knocko
         <span className="potential-badge">{stageCode(fixture.stage)}</span>
         <span className="potential-label">{fixture.stage}</span>
         {fixture.score?.status === "finished" && <span className="past-badge">FT</span>}
-        <span className={isNext && !isLive ? "match-date--next" : ""}>{nzt}</span>
+        <span className={isNext && !isLive ? "match-date--next" : ""}>{localDate}</span>
+        <span className="match-tz-label">{city} time</span>
         {tvnzLink && <a href={tvnzLink} target="_blank" rel="noreferrer" className="btn-tvnz-inline">📺 TVNZ+</a>}
         <a className="btn-cal-side" href={gcalUrl(fixture, country)} target="_blank" rel="noreferrer" title="Add to Google Calendar">
           <CalIcon />

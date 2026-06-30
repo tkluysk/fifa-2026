@@ -3,7 +3,7 @@ import { gcalUrl, tvnzUrl } from "../matches";
 import { flag, countryColor } from "../countryInfo";
 import type { LiveScore, GoalEvent, MatchCard as CardEvent, SubEvent } from "../hooks/useLiveData";
 import { tempForCity } from "../cityTemps";
-import { formatLocalTime } from "../dateUtils";
+import { formatLocalDate, userCity } from "../dateUtils";
 
 function CalIcon() {
   return (
@@ -72,7 +72,8 @@ export function MatchCard({ match, tracked, score, onInfo, isNext }: Props) {
       <div className="match-meta">
         <span className="group-badge">Group {match.group}</span>
         {status === "past" && <span className="past-badge">FT</span>}
-        <span className={isNext && status !== "live" ? "match-date--next" : ""}>{formatLocalTime(match.startUtc)}</span>
+        <span className={isNext && status !== "live" ? "match-date--next" : ""}>{formatLocalDate(match.startUtc)}</span>
+        <span className="match-tz-label">{userCity()} time</span>
         {stream && (
           <a className="btn-tvnz-inline" href={stream} target="_blank" rel="noreferrer">📺 TVNZ+</a>
         )}

@@ -1,11 +1,10 @@
-function userCity(): string {
+export function userCity(): string {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone; // e.g. "Pacific/Auckland"
-  const city = tz.split("/").pop()!.replace(/_/g, " ");       // → "Auckland"
-  return city;
+  return tz.split("/").pop()!.replace(/_/g, " ");             // → "Auckland"
 }
 
-export function formatLocalTime(iso: string): string {
-  const date = new Intl.DateTimeFormat(undefined, {
+export function formatLocalDate(iso: string): string {
+  return new Intl.DateTimeFormat(undefined, {
     weekday: "short",
     day: "numeric",
     month: "short",
@@ -13,5 +12,9 @@ export function formatLocalTime(iso: string): string {
     minute: "2-digit",
     hour12: true,
   }).format(new Date(iso));
-  return `${date} (${userCity()} time)`;
+}
+
+/** Full date + city label as a single string (for non-JSX contexts like AI prompts). */
+export function formatLocalTime(iso: string): string {
+  return `${formatLocalDate(iso)} ${userCity()} time`;
 }

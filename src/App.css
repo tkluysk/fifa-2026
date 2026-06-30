@@ -838,7 +838,12 @@ details[open] .ko-details-summary::before { content: "▼"; }
 
 .match-date--next {
   color: var(--text);
+  font-weight: 700;
   font-size: .85rem;
+}
+.match-tz-label {
+  color: var(--text-muted);
+  font-weight: 400;
 }
 
 /* Teams + score row — 3-column grid for perfect symmetry */
