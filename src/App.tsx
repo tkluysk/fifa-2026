@@ -219,12 +219,12 @@ export default function App() {
               });
 
               return (
-                <section key={country} id={`match-country-${country.toLowerCase().replace(/\s+/g, "-")}`} className="country-section">
-                  <div className="country-section-header" style={{ borderLeftColor: accent }}>
+                <details key={country} id={`match-country-${country.toLowerCase().replace(/\s+/g, "-")}`} className="country-section" open>
+                  <summary className="country-section-header" style={{ borderLeftColor: accent }}>
                     <span className="country-section-flag">{flag(country)}</span>
                     <span className="country-section-name">{country}</span>
                     {group !== "?" && <span className="country-section-group-badge">Group {group}</span>}
-                  </div>
+                  </summary>
 
                   {/* Group Stage */}
                   <div className="country-sub-section">
@@ -294,7 +294,7 @@ export default function App() {
                       )}
                     </div>
                   )}
-                </section>
+                </details>
               );
             })}
           </div>

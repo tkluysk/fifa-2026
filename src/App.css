@@ -1170,7 +1170,12 @@ details[open] .ko-details-summary::before { content: "▼"; }
   border-left: 4px solid transparent;
   background: color-mix(in srgb, var(--surface) 60%, var(--bg) 40%);
   border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  list-style: none;
 }
+.country-section-header::-webkit-details-marker { display: none; }
+.country-section[open] .country-section-header { border-bottom: 1px solid var(--border); }
+.country-section:not([open]) .country-section-header { border-bottom: none; }
 .country-section-flag { font-size: 1.3rem; line-height: 1; }
 .country-section-name {
   font-size: .95rem;
