@@ -1,7 +1,8 @@
 import type { KnockoutFixture, GroupStandingsMap } from "../hooks/useLiveData";
-import { resolveSlot } from "../hooks/useLiveData";
+import { upstreamTeams } from "../hooks/useLiveData";
 import { countryColor, flag } from "../countryInfo";
 import { tempForCity } from "../cityTemps";
+import { MatchTimeline } from "./MatchCard";
 
 function CalIcon() {
   return (
@@ -23,6 +24,7 @@ interface Props {
   fixture: KnockoutFixture;
   country: string;
   groupStandingsMap: GroupStandingsMap;
+  knockoutFixtures: KnockoutFixture[];
   onInfo?: (country: string) => void;
 }
 
@@ -55,12 +57,20 @@ function stageCode(stage: string): string {
   return stage.slice(0, 3).toUpperCase();
 }
 
-export function PotentialMatchCard({ fixture, country, groupStandingsMap, onInfo }: Props) {
+export function PotentialMatchCard({ fixture, country, groupStandingsMap, knockoutFixtures, onInfo }: Props) {
   const homeColor = countryColor(country);
-  const isHome = fixture.home.toLowerCase() === country.toLowerCase();
+  // When future fixtures still carry slot labels (e.g. "Round of 16 2 Winner"),
+  // we can't compare to the country name directly — check upstream teams instead.
+  const countryLower = country.toLowerCase();
+  const isHome =
+    fixture.home.toLowerCase() === countryLower ||
+    (!isKnownTeam(fixture.home) &&
+      upstreamTeams(fixture.home, groupStandingsMap, knockoutFixtures)
+        .some(t => t.toLowerCase() === countryLower));
   const opponentSlot = isHome ? fixture.away : fixture.home;
   const opponentKnown = isKnownTeam(opponentSlot);
-  const candidates = opponentKnown ? [] : resolveSlot(opponentSlot, groupStandingsMap);
+  const candidates = (opponentKnown ? [] : upstreamTeams(opponentSlot, groupStandingsMap, knockoutFixtures))
+    .filter(c => c.toLowerCase() !== country.toLowerCase());
   const awayColor = opponentKnown ? countryColor(opponentSlot) : { bg: "var(--surface)", accent: "var(--border)" };
   const tvnzLink = fixture.tvnzPath ? `${TVNZ_BASE}${fixture.tvnzPath}` : null;
 
@@ -70,7 +80,8 @@ export function PotentialMatchCard({ fixture, country, groupStandingsMap, onInfo
     hour: "numeric", minute: "2-digit", hour12: true,
   }).format(new Date(fixture.startUtc));
 
-  const isScored = fixture.score && (fixture.score.status === "finished" || fixture.score.status === "in_progress");
+  const isLive = fixture.score?.status === "in_progress";
+  const isScored = fixture.score && (fixture.score.status === "finished" || isLive);
   const myScore = fixture.score ? (isHome ? fixture.score.home : fixture.score.away) : undefined;
   const theirScore = fixture.score ? (isHome ? fixture.score.away : fixture.score.home) : undefined;
 
@@ -87,6 +98,8 @@ export function PotentialMatchCard({ fixture, country, groupStandingsMap, onInfo
       <div className="match-meta">
         <span className="potential-badge">{stageCode(fixture.stage)}</span>
         <span className="potential-label">{fixture.stage}</span>
+        {isLive && <span className="live-badge">LIVE</span>}
+        {fixture.score?.status === "finished" && <span className="past-badge">FT</span>}
         <span>{nzt} NZT</span>
         {tvnzLink && <a href={tvnzLink} target="_blank" rel="noreferrer" className="btn-tvnz-inline">📺 TVNZ+</a>}
         <a className="btn-cal-side" href={gcalUrl(fixture, country)} target="_blank" rel="noreferrer" title="Add to Google Calendar">
@@ -104,7 +117,14 @@ export function PotentialMatchCard({ fixture, country, groupStandingsMap, onInfo
 
           <div className="score-block">
             {isScored && myScore !== undefined ? (
-              <span className="score">{myScore}–{theirScore}</span>
+              <>
+                {fixture.score?.clock && isLive && <span className="score-clock">{fixture.score.clock}</span>}
+                <div className="score-nums">
+                  <span className="score-num">{myScore}</span>
+                  <span className="score-sep">–</span>
+                  <span className="score-num">{theirScore}</span>
+                </div>
+              </>
             ) : (
               <span className="vs">vs</span>
             )}
@@ -116,27 +136,29 @@ export function PotentialMatchCard({ fixture, country, groupStandingsMap, onInfo
                 {onInfo && <button className="info-btn" style={{ marginRight: 6 }} aria-label={`Info about ${opponentSlot}`} onClick={() => onInfo(opponentSlot)} />}
                 <span className="team-name">{opponentSlot}</span>
               </>
+            ) : candidates.length > 0 && candidates.length <= 4 ? (
+              <div className="potential-candidates">
+                {candidates.map((c) => (
+                  <span key={c} className="potential-candidate">
+                    <span className="potential-candidate-flag">{flag(c)}</span>
+                    <span className="potential-candidate-name">{c}</span>
+                    {onInfo && (
+                      <button className="bracket-cand-info" onClick={() => onInfo(c)} title={`Info: ${c}`} />
+                    )}
+                  </span>
+                ))}
+              </div>
             ) : (
-              <span className="team-name potential-tbd">{opponentSlot}</span>
+              <span className="team-name potential-tbd">?</span>
             )}
           </div>
         </div>
 
       </div>
 
-      {/* Candidates row */}
-      {candidates.length > 0 && (
-        <div className="potential-candidates">
-          <span className="potential-candidates-label">Candidates:</span>
-          {candidates.map((c) => (
-            <span key={c} className="potential-candidate">
-              {flag(c)} {c}
-              {onInfo && (
-                <button className="bracket-cand-info" onClick={() => onInfo(c)} title={`Info: ${c}`} />
-              )}
-            </span>
-          ))}
-        </div>
+      {/* Live timeline */}
+      {fixture.score && isScored && (
+        <MatchTimeline score={fixture.score} isLive={isLive} />
       )}
 
       {/* Venue row */}

@@ -86,11 +86,16 @@ async function fetchLiveContext(country: string): Promise<LiveContext> {
     const clock = comp.status?.displayClock as string | undefined;
     const period = comp.status?.period as number | undefined;
 
+    // Detect round from ESPN notes (e.g. "Group F", "Round of 32", "Quarter-final")
+    const noteHeadline: string = (comp.notes as { headline?: string }[] | undefined)?.[0]?.headline ?? "";
+    const isKnockout = !noteHeadline.toLowerCase().startsWith("group");
+    const roundLabel = noteHeadline || (isKnockout ? "Knockout" : "Group stage");
+
     if (completed) {
-      matchLines.push(`  ${home} ${homeScore}–${awayScore} ${away} [FINAL]`);
+      matchLines.push(`  [${roundLabel}] ${home} ${homeScore}–${awayScore} ${away} [FINAL]`);
     } else if (state === "in") {
       const min = clock ? ` (${clock}${period === 2 ? " ET" : ""})` : "";
-      matchLines.push(`  ${home} ${homeScore}–${awayScore} ${away} [LIVE${min}]`);
+      matchLines.push(`  [${roundLabel}] ${home} ${homeScore}–${awayScore} ${away} [LIVE${min}]`);
     } else {
       const dt = new Date(event.date as string);
       const nzt = new Intl.DateTimeFormat("en-NZ", {
@@ -98,7 +103,7 @@ async function fetchLiveContext(country: string): Promise<LiveContext> {
         weekday: "short", day: "numeric", month: "short",
         hour: "numeric", minute: "2-digit", hour12: true,
       }).format(dt);
-      matchLines.push(`  ${home} vs ${away} — scheduled ${nzt} NZT`);
+      matchLines.push(`  [${roundLabel}] ${home} vs ${away} — scheduled ${nzt} NZT`);
     }
   }
 
@@ -133,6 +138,12 @@ IMPORTANT TOURNAMENT RULES:
 - Do NOT invent or assume results not listed above.
 - Be mathematically precise about advancement scenarios.
 - Standings listed include all completed goals and points.
+- CRITICAL: Each match line is prefixed with its ROUND in brackets, e.g. [Group F] or [Round of 32].
+  - [Group X] matches are GROUP STAGE games that affect standings.
+  - [Round of 32], [Round of 16], [Quarter-final], [Semi-final], [Final], [3rd Place] matches are KNOCKOUT STAGE games.
+  - A KNOCKOUT game is NOT a group stage dead-rubber. It is a knockout elimination match. Never describe a knockout game as a dead-rubber, irrelevant, or group-related.
+  - If the team is playing or has played a knockout match, they have already advanced from the group stage.
+  - The "What They Need" section should describe knockout stage objectives, not group-stage qualification math, if they are already in the knockout round.
 
 Return ONLY valid JSON (no markdown, no commentary) in exactly this structure:
 {

@@ -8,8 +8,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import type { KnockoutFixture, GroupStandingsMap } from "../hooks/useLiveData";
-import { resolveSlot, knockoutPathForCountry } from "../hooks/useLiveData";
-import { flag, countryColor } from "../countryInfo";
+import { upstreamTeams, knockoutPathForCountry } from "../hooks/useLiveData";
+import { flag, countryColor } from "../countryInfo"; // countryColor used in FocusedBracket
 const TVNZ_BASE = "https://www.tvnz.co.nz";
 
 function CalIcon({ size = 13 }: { size?: number }) {
@@ -53,7 +53,7 @@ function CandidateTooltip({ candidates, tracked }: { candidates: string[]; track
     };
   }, [open, reposition]);
 
-  const label = candidates.slice(0, 3).map(c => flag(c)).join("") + (candidates.length > 3 ? ` +${candidates.length - 3}` : "");
+  const label = candidates.length > 4 ? "?" : candidates.map(c => flag(c)).join("");
 
   return (
     <>
@@ -87,7 +87,7 @@ interface Props {
   countryGroups: Record<string, string>;
 }
 
-const STAGES = ["Round of 32", "Round of 16", "Quarter-final", "Semi-final", "Final"];
+const STAGES = ["Round of 32", "Round of 16", "Quarter-final", "Semi-final", "Final", "3rd Place"];
 
 function isKnownTeam(name: string): boolean {
   return !/(group|round of|winner|place|runner|loser|quarterfinal|semifinal|third)/i.test(name);
@@ -95,7 +95,7 @@ function isKnownTeam(name: string): boolean {
 
 function stageShort(stage: string): string {
   return (
-    { "Round of 32": "R32", "Round of 16": "R16", "Quarter-final": "QF", "Semi-final": "SF", "Final": "Final" }
+    { "Round of 32": "R32", "Round of 16": "R16", "Quarter-final": "QF", "Semi-final": "SF", "Final": "Final", "3rd Place": "3rd" }
   )[stage] ?? stage;
 }
 
@@ -124,9 +124,7 @@ const COL_GAP = 28; // horizontal gap between columns
 
 // ── Main export ───────────────────────────────────────────────────────────
 
-export function BracketView({ fixtures, tracked, groupStandingsMap, countryGroups }: Props) {
-  const [showFull, setShowFull] = useState(false);
-
+export function BracketView({ fixtures, tracked, groupStandingsMap, countryGroups, showFull = false }: Props & { showFull?: boolean }) {
   if (!fixtures.length || !tracked.length) return null;
 
   const paths = tracked
@@ -150,21 +148,10 @@ export function BracketView({ fixtures, tracked, groupStandingsMap, countryGroup
 
   return (
     <div className="bracket-wrap">
-      <div className="bracket-header">
-        <p className="picker-label" style={{ margin: 0 }}>Road to the Final</p>
-        <button className="bracket-toggle-btn" onClick={() => setShowFull(v => !v)}>
-          {showFull ? (
-            <><svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style={{verticalAlign:"middle",marginRight:4}}><path d="M1 1h4v4H1zM7 1h4v4H7zM1 7h4v4H1z" fill="currentColor" opacity=".5"/><path d="M7 9h5M9.5 6.5v5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>My countries</>
-          ) : (
-            <><svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style={{verticalAlign:"middle",marginRight:4}}><rect x="1" y="1" width="4" height="4" rx=".5" fill="currentColor" opacity=".6"/><rect x="7" y="1" width="4" height="4" rx=".5" fill="currentColor" opacity=".6"/><rect x="1" y="7" width="4" height="4" rx=".5" fill="currentColor" opacity=".6"/><rect x="7" y="7" width="4" height="4" rx=".5" fill="currentColor" opacity=".6"/></svg>Full bracket</>
-          )}
-        </button>
-      </div>
-
       {showFull ? (
-        <FullBracket byStage={byStage} trackedIds={trackedIds} tracked={tracked} gsMap={groupStandingsMap} />
+        <FullBracket byStage={byStage} trackedIds={trackedIds} tracked={tracked} gsMap={groupStandingsMap} knockoutFixtures={fixtures} />
       ) : (
-        <FocusedBracket paths={paths} gsMap={groupStandingsMap} />
+        <FocusedBracket paths={paths} gsMap={groupStandingsMap} knockoutFixtures={fixtures} />
       )}
     </div>
   );
@@ -172,9 +159,10 @@ export function BracketView({ fixtures, tracked, groupStandingsMap, countryGroup
 
 // ── Focused view ──────────────────────────────────────────────────────────
 
-function FocusedBracket({ paths, gsMap }: {
+function FocusedBracket({ paths, gsMap, knockoutFixtures }: {
   paths: { country: string; path: KnockoutFixture[] }[];
   gsMap: GroupStandingsMap;
+  knockoutFixtures: KnockoutFixture[];
 }) {
   const stagesPresent = STAGES.filter(s => paths.some(p => p.path.some(f => f.stage === s)));
 
@@ -202,7 +190,7 @@ function FocusedBracket({ paths, gsMap }: {
                 return (
                   <div key={stage} className="bracket-flow-cell">
                     {fixture ? (
-                      <FlowCard fixture={fixture} country={country} gsMap={gsMap} accent={accent} />
+                      <FlowCard fixture={fixture} country={country} gsMap={gsMap} accent={accent} knockoutFixtures={knockoutFixtures} />
                     ) : (
                       <div className="bracket-flow-empty">?</div>
                     )}
@@ -218,16 +206,22 @@ function FocusedBracket({ paths, gsMap }: {
   );
 }
 
-function FlowCard({ fixture, country, gsMap, accent }: {
+function FlowCard({ fixture, country, gsMap, accent, knockoutFixtures }: {
   fixture: KnockoutFixture;
   country: string;
   gsMap: GroupStandingsMap;
   accent: string;
+  knockoutFixtures: KnockoutFixture[];
 }) {
-  const isHome = fixture.home.toLowerCase() === country.toLowerCase();
+  const countryLower = country.toLowerCase();
+  const isHome =
+    fixture.home.toLowerCase() === countryLower ||
+    (!isKnownTeam(fixture.home) &&
+      upstreamTeams(fixture.home, gsMap, knockoutFixtures)
+        .some(t => t.toLowerCase() === countryLower));
   const opponentSlot = isHome ? fixture.away : fixture.home;
   const known = isKnownTeam(opponentSlot);
-  const candidates = known ? [] : resolveSlot(opponentSlot, gsMap);
+  const candidates = known ? [] : upstreamTeams(opponentSlot, gsMap, knockoutFixtures);
 
   const finished = fixture.score?.status === "finished";
   const live = fixture.score?.status === "in_progress";
@@ -263,7 +257,7 @@ function FlowCard({ fixture, country, gsMap, accent }: {
         ) : candidates.length > 0 ? (
           <CandidateTooltip candidates={candidates} />
         ) : (
-          <span className="bracket-flow-tbd">TBD</span>
+          <span className="bracket-flow-tbd">?</span>
         )}
       </div>
       <div className="bracket-flow-footer">
@@ -290,25 +284,10 @@ function FlowCard({ fixture, country, gsMap, accent }: {
 const SLOT_GAP = 10;   // vertical gap between adjacent cards in R32
 const SLOT_H = CARD_H + SLOT_GAP; // height of one R32 slot
 
-// Number of R32 slots each stage card spans
-const STAGE_SPAN: Record<string, number> = {
-  "Round of 32": 1,
-  "Round of 16": 2,
-  "Quarter-final": 4,
-  "Semi-final": 8,
-  "Final": 16,
-};
 
-function cardTop(slotIndex: number, span: number): number {
-  // Centre a card of CARD_H within span * SLOT_H
+function cardTop(slotIndex: number, span: number = 1): number {
   const blockH = span * SLOT_H;
   return slotIndex * SLOT_H + (blockH - CARD_H) / 2;
-}
-
-// R32 slot assignments — matches appear in draw order (sorted by startUtc)
-// Each subsequent round's match i occupies slot pairs from R32: match 0 → slots 0+1, match 1 → slots 2+3, etc.
-function r32SlotStart(stageMatchIndex: number, span: number): number {
-  return stageMatchIndex * span;
 }
 
 interface MatchLayout {
@@ -324,72 +303,154 @@ interface ConnectorLine {
   mid: number; // x of mid-point for the bent connector
 }
 
+// Extract 1-based ESPN slot number from a label like "Round of 32 3 Winner" → 3
+function extractSlotNum(label: string): number | null {
+  const m = label.match(/\b(\d+)\s+winner\b/i);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+
+/**
+ * For a given fixture in stage N, find the two feeder fixtures from stage N-1.
+ * Uses slot labels in the fixture's home/away to look up feeders.
+ * Falls back to matching by winner name for resolved slots.
+ */
+function findFeeders(
+  fixture: KnockoutFixture,
+  prevFixtures: KnockoutFixture[],
+  prevStagePrefixes: string[],
+): KnockoutFixture[] {
+  const feeders: KnockoutFixture[] = [];
+
+  for (const slot of [fixture.home, fixture.away]) {
+    const slotL = slot.toLowerCase();
+    if (prevStagePrefixes.some(p => slotL.startsWith(p))) {
+      // Slot label: "Round of 32 N Winner" → look up Nth date-sorted fixture
+      const num = extractSlotNum(slot);
+      if (num !== null) {
+        const f = prevFixtures[num - 1];
+        if (f) feeders.push(f);
+      }
+    } else if (!/(group|round of|winner|place|runner|loser|quarterfinal|semifinal|third)/i.test(slot)) {
+      // Real team name — find which prev fixture they won
+      const f = prevFixtures.find(pf => {
+        if (pf.score?.status !== "finished") return false;
+        const w = pf.score.home > pf.score.away ? pf.home : pf.away;
+        return w.toLowerCase() === slotL;
+      });
+      if (f) feeders.push(f);
+    }
+  }
+
+  return feeders;
+}
+
+const STAGE_ORDER = ["Round of 32", "Round of 16", "Quarter-final", "Semi-final", "Final"];
+
+const STAGE_PREFIXES: Record<string, string[]> = {
+  "Round of 32":   ["round of 32"],
+  "Round of 16":   ["round of 16"],
+  "Quarter-final": ["quarterfinal", "quarter-final"],
+  "Semi-final":    ["semifinal", "semi-final"],
+};
+
+/**
+ * Layout by DFS from the Final.
+ *
+ * Each R32 game is a leaf and gets a sequential row (0..15) in DFS traversal
+ * order. Non-leaf rows are the average of their children. This guarantees a
+ * perfect non-overlapping binary-tree layout regardless of how ESPN numbers
+ * the slots or which pairs are adjacent.
+ */
 function buildLayout(byStage: Record<string, KnockoutFixture[]>, stages: string[]): {
   layouts: MatchLayout[];
   connectors: ConnectorLine[];
   totalW: number;
   totalH: number;
 } {
-  const layouts: MatchLayout[] = [];
-  const connectors: ConnectorLine[] = [];
+  // Sort every stage by ESPN event ID — ID order == bracket slot order
+  const byStageById: Record<string, KnockoutFixture[]> = {};
+  for (const stage of stages) {
+    byStageById[stage] = (byStage[stage] ?? []).slice().sort((a, b) => parseInt(a.id) - parseInt(b.id));
+  }
+
+  // Precompute feeders for every fixture (id → KnockoutFixture[])
+  const feedersOf: Record<string, KnockoutFixture[]> = {};
+  for (const stage of stages) {
+    const si = STAGE_ORDER.indexOf(stage);
+    const prevStage = si > 0 ? STAGE_ORDER[si - 1] : null;
+    const prevFixtures = prevStage ? (byStageById[prevStage] ?? []) : [];
+    const prefixes = prevStage ? (STAGE_PREFIXES[prevStage] ?? [prevStage.toLowerCase()]) : [];
+    for (const fixture of byStageById[stage]) {
+      feedersOf[fixture.id] = prevFixtures.length ? findFeeders(fixture, prevFixtures, prefixes) : [];
+    }
+  }
+
+  // DFS from Final — assign sequential leaf (R32) rows as encountered
+  const final = (byStageById["Final"] ?? [])[0];
+  const fixtureRow: Record<string, number> = {};
+  let nextLeaf = 0;
+
+  function dfs(id: string): number {
+    const feeders = feedersOf[id] ?? [];
+    if (feeders.length === 0) {
+      // Leaf: this R32 game gets the next available row
+      fixtureRow[id] = nextLeaf++;
+      return fixtureRow[id];
+    }
+    const childRows = feeders.map(f => dfs(f.id));
+    const avg = childRows.reduce((a, b) => a + b, 0) / childRows.length;
+    fixtureRow[id] = avg;
+    return avg;
+  }
+
+  if (final) dfs(final.id);
+
+  // Any fixture not reached (e.g. 3rd-place match) — append below
+  for (const stage of stages) {
+    for (const f of byStageById[stage]) {
+      if (fixtureRow[f.id] === undefined) fixtureRow[f.id] = nextLeaf++;
+    }
+  }
+
   const colCount = stages.length;
   const totalW = colCount * CARD_W + (colCount - 1) * COL_GAP;
-  const totalH = 9 * SLOT_H;
+  const totalH = Math.max(nextLeaf, 16) * SLOT_H;
 
-  // Map stageMatchIndex → top for later stages to compute connectors
-  const stageTops: Record<string, number[]> = {};
+  const layouts: MatchLayout[] = [];
+  const connectors: ConnectorLine[] = [];
 
-  stages.forEach((stage, colIdx) => {
-    const stageFixtures = (byStage[stage] ?? []).slice(); // already sorted by startUtc
-    const span = STAGE_SPAN[stage] ?? 1;
-    const tops: number[] = [];
+  for (const [stageIdx, stage] of stages.entries()) {
+    const left = stageIdx * (CARD_W + COL_GAP);
+    for (const fixture of byStage[stage] ?? []) {
+      const row = fixtureRow[fixture.id] ?? 0;
+      const top = row * SLOT_H;
+      layouts.push({ fixture, col: stageIdx, top, left });
 
-    stageFixtures.forEach((fixture, i) => {
-      const slotStart = r32SlotStart(i, span);
-      const top = cardTop(slotStart, span);
-      const left = colIdx * (CARD_W + COL_GAP);
-      tops.push(top);
-      layouts.push({ fixture, col: colIdx, top, left });
-    });
-
-    stageTops[stage] = tops;
-
-    // Draw connectors from previous stage into this one
-    if (colIdx > 0) {
-      const prevStage = stages[colIdx - 1];
-      const prevTops = stageTops[prevStage] ?? [];
-      const prevLeft = (colIdx - 1) * (CARD_W + COL_GAP);
-      const curLeft = colIdx * (CARD_W + COL_GAP);
-
-      // Each card in this stage receives 2 feeder cards from previous stage
-      stageFixtures.forEach((_f, i) => {
-        const feeder1Idx = i * 2;
-        const feeder2Idx = i * 2 + 1;
-        const curTop = tops[i];
-        if (curTop === undefined) return;
-
-        const curMidY = curTop + CARD_H / 2;
+      const feeders = feedersOf[fixture.id] ?? [];
+      if (feeders.length && stageIdx > 0) {
+        const prevLeft = (stageIdx - 1) * (CARD_W + COL_GAP);
         const midX = prevLeft + CARD_W + COL_GAP / 2;
-
-        [feeder1Idx, feeder2Idx].forEach(fi => {
-          const feederTop = prevTops[fi];
-          if (feederTop === undefined) return;
-          const feederMidY = feederTop + CARD_H / 2;
-          // elbow: right edge of feeder → midX at feeder Y → midX at cur Y → left edge of cur
-          connectors.push({ x1: prevLeft + CARD_W, y1: feederMidY, x2: curLeft, y2: curMidY, mid: midX });
-        });
-      });
+        const curMidY = top + CARD_H / 2;
+        for (const feeder of feeders) {
+          const feederRow = fixtureRow[feeder.id];
+          if (feederRow === undefined) continue;
+          const feederMidY = feederRow * SLOT_H + CARD_H / 2;
+          connectors.push({ x1: prevLeft + CARD_W, y1: feederMidY, x2: left, y2: curMidY, mid: midX });
+        }
+      }
     }
-  });
+  }
 
   return { layouts, connectors, totalW, totalH };
 }
 
-function FullBracket({ byStage, trackedIds, tracked, gsMap }: {
+function FullBracket({ byStage, trackedIds, tracked, gsMap, knockoutFixtures }: {
   byStage: Record<string, KnockoutFixture[]>;
   trackedIds: Set<string>;
   tracked: string[];
   gsMap: GroupStandingsMap;
+  knockoutFixtures: KnockoutFixture[];
 }) {
   const stages = STAGES.filter(s => byStage[s]?.length);
   const { layouts, connectors, totalW, totalH } = buildLayout(byStage, stages);
@@ -429,21 +490,13 @@ function FullBracket({ byStage, trackedIds, tracked, gsMap }: {
         {/* Match cards */}
         {layouts.map(({ fixture, top, left }) => {
           const highlighted = trackedIds.has(fixture.id);
-          const trackedCountry = tracked.find(c => {
-            const cl = c.toLowerCase();
-            if (fixture.home.toLowerCase() === cl || fixture.away.toLowerCase() === cl) return true;
-            const hc = resolveSlot(fixture.home, gsMap).map(x => x.toLowerCase());
-            const ac = resolveSlot(fixture.away, gsMap).map(x => x.toLowerCase());
-            return hc.includes(cl) || ac.includes(cl);
-          });
-          const accent = trackedCountry ? countryColor(trackedCountry).accent : undefined;
 
           return (
             <div
               key={fixture.id}
               style={{ position: "absolute", top, left, width: CARD_W, height: CARD_H }}
             >
-              <FullCard fixture={fixture} highlighted={highlighted} accent={accent} gsMap={gsMap} tracked={tracked} />
+              <FullCard fixture={fixture} highlighted={highlighted} gsMap={gsMap} tracked={tracked} knockoutFixtures={knockoutFixtures} />
             </div>
           );
         })}
@@ -452,12 +505,12 @@ function FullBracket({ byStage, trackedIds, tracked, gsMap }: {
   );
 }
 
-function FullCard({ fixture, highlighted, accent, gsMap, tracked }: {
+function FullCard({ fixture, highlighted, gsMap, tracked, knockoutFixtures }: {
   fixture: KnockoutFixture;
   highlighted: boolean;
-  accent?: string;
   gsMap: GroupStandingsMap;
   tracked: string[];
+  knockoutFixtures: KnockoutFixture[];
 }) {
   const finished = fixture.score?.status === "finished";
   const live = fixture.score?.status === "in_progress";
@@ -474,15 +527,12 @@ function FullCard({ fixture, highlighted, accent, gsMap, tracked }: {
   return (
     <div
       className={`bracket-full-card${highlighted ? " bracket-full-card--highlighted" : ""}`}
-      style={{
-        width: "100%", height: "100%",
-        ...(highlighted && accent ? { borderLeftColor: accent } : {}),
-      }}
+      style={{ width: "100%", height: "100%" }}
     >
       {live && <div className="bracket-live-pip">LIVE</div>}
-      <FullTeamRow name={fixture.home} score={fixture.score?.home} won={homeWon} lost={finished && !homeWon} gsMap={gsMap} tracked={tracked} />
+      <FullTeamRow name={fixture.home} score={fixture.score?.home} won={homeWon} lost={finished && !homeWon} gsMap={gsMap} tracked={tracked} knockoutFixtures={knockoutFixtures} />
       <div className="bracket-divider" />
-      <FullTeamRow name={fixture.away} score={fixture.score?.away} won={awayWon} lost={finished && !awayWon} gsMap={gsMap} tracked={tracked} />
+      <FullTeamRow name={fixture.away} score={fixture.score?.away} won={awayWon} lost={finished && !awayWon} gsMap={gsMap} tracked={tracked} knockoutFixtures={knockoutFixtures} />
       <div className="bracket-full-footer">
         <span className="bracket-full-date">{nzt}</span>
         {tvnz && <a className="bracket-flow-tvnz" href={tvnz} target="_blank" rel="noreferrer">📺</a>}
@@ -494,11 +544,11 @@ function FullCard({ fixture, highlighted, accent, gsMap, tracked }: {
   );
 }
 
-function FullTeamRow({ name, score, won, lost, gsMap, tracked }: {
-  name: string; score?: number; won: boolean; lost: boolean; gsMap: GroupStandingsMap; tracked: string[];
+function FullTeamRow({ name, score, won, lost, gsMap, tracked, knockoutFixtures }: {
+  name: string; score?: number; won: boolean; lost: boolean; gsMap: GroupStandingsMap; tracked: string[]; knockoutFixtures: KnockoutFixture[];
 }) {
   const known = isKnownTeam(name);
-  const candidates = known ? [] : resolveSlot(name, gsMap);
+  const candidates = known ? [] : upstreamTeams(name, gsMap, knockoutFixtures);
   const isTracked = tracked.some(c => c.toLowerCase() === name.toLowerCase());
   const trackedCand = candidates.find(c => tracked.map(t => t.toLowerCase()).includes(c.toLowerCase()));
 
@@ -509,9 +559,7 @@ function FullTeamRow({ name, score, won, lost, gsMap, tracked }: {
           ? <><span>{flag(name)}</span> <span className={isTracked ? "bracket-name-bold" : ""}>{name}</span></>
           : candidates.length > 0
             ? <CandidateTooltip candidates={candidates} tracked={tracked} />
-            : <span className="bracket-tbd">
-                {name.replace(/Round of (32|16) /i, 'R$1 ').replace(/Quarterfinal /i, 'QF ').replace(/Semifinal /i, 'SF ')}
-              </span>
+            : <span className="bracket-tbd">?</span>
         }
       </span>
       {score !== undefined && (

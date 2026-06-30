@@ -9,7 +9,7 @@ import { BracketView } from "./components/BracketView";
 import { GoogleCalendarButton } from "./components/GoogleCalendarButton";
 import { useLiveData, knockoutPathForCountry } from "./hooks/useLiveData";
 import { buildIcs, downloadIcs } from "./icsExport";
-import { flag } from "./countryInfo";
+import { flag, countryColor } from "./countryInfo";
 import "./App.css";
 
 function countriesFromMatches(matches: import("./matches").Match[]): string[] {
@@ -39,7 +39,7 @@ function loadSelected(): string[] {
 export default function App() {
   const [selected, setSelected] = useState<string[]>(loadSelected);
   const [infoCountry, setInfoCountry] = useState<string | null>(null);
-  const [view, setView] = useState<"list" | "calendar">("list");
+
   const [theme, setTheme] = useState<"dark" | "light">(loadTheme);
   const handleInfo = useCallback((c: string) => setInfoCountry(c), []);
 
@@ -102,26 +102,40 @@ export default function App() {
         eliminatedSet={eliminatedSet}
       />
 
-      <BracketView
-        fixtures={knockoutFixtures}
-        tracked={selected}
-        groupStandingsMap={groupStandingsMap}
-        countryGroups={countryGroups}
-      />
-
-      <div className="view-toggle">
-        <button className={`view-btn${view === "list" ? " view-btn--active" : ""}`} onClick={() => setView("list")}>≡ List</button>
-        <button className={`view-btn${view === "calendar" ? " view-btn--active" : ""}`} onClick={() => setView("calendar")}>📅 Calendar</button>
-        <button className="view-btn view-btn--ics" onClick={handleIcsDownload} disabled={matches.length === 0} title="Download as .ics — import into Google Cal, Apple Cal or Outlook to replace all entries">
-          ⬇ Export .ics
-        </button>
-        <GoogleCalendarButton
-          matches={matches}
-          knockoutFixtures={knockoutFixtures}
-          selected={selected}
-          countryGroups={countryGroups}
+      <details className="bracket-section">
+        <summary className="bracket-section-summary">Road to the Final</summary>
+        <BracketView
+          fixtures={knockoutFixtures}
+          tracked={selected}
           groupStandingsMap={groupStandingsMap}
+          countryGroups={countryGroups}
+          showFull={false}
         />
+      </details>
+      <details className="bracket-section">
+        <summary className="bracket-section-summary">Full bracket</summary>
+        <BracketView
+          fixtures={knockoutFixtures}
+          tracked={selected}
+          groupStandingsMap={groupStandingsMap}
+          countryGroups={countryGroups}
+          showFull={true}
+        />
+      </details>
+
+      <div className="toolbar">
+        <div className="toolbar-left">
+          <button className="view-btn view-btn--ics" onClick={handleIcsDownload} disabled={matches.length === 0} title="Download as .ics — import into Google Cal, Apple Cal or Outlook">
+            ⬇ Export .ics
+          </button>
+          <GoogleCalendarButton
+            matches={matches}
+            knockoutFixtures={knockoutFixtures}
+            selected={selected}
+            countryGroups={countryGroups}
+            groupStandingsMap={groupStandingsMap}
+          />
+        </div>
       </div>
 
       <main className="main">
@@ -132,124 +146,132 @@ export default function App() {
         )}
         {selected.length === 0 ? (
           <p className="empty">Select at least one country above.</p>
-        ) : matches.length === 0 ? (
-          <p className="empty">No group-stage matches found for the selected countries.</p>
-        ) : view === "calendar" ? (
-          <CalendarView
-            matches={matches}
-            knockoutFixtures={knockoutFixtures}
-            scores={scores}
-            tracked={selected}
-            onInfo={handleInfo}
-          />
         ) : (
-          <ul className="match-list">
-            {(() => {
-              const now = Date.now();
-              const live = matches.filter(m => scores[m.id]?.status === "in_progress");
-              const liveIds = new Set(live.map(m => m.id));
-              const past = matches.filter(m => !liveIds.has(m.id) && new Date(m.startUtc).getTime() <= now);
-              const upcoming = matches.filter(m => !liveIds.has(m.id) && new Date(m.startUtc).getTime() > now);
-              const upcomingNextSet = new Set(
-                upcoming.slice(0, 2).map(m => m.id)
-              );
-              return (
-                <>
-                  {live.map(m => (
-                    <MatchCard key={m.id} match={m} tracked={selected} score={scores[m.id]} onInfo={setInfoCountry} isNext={false} />
-                  ))}
-                  {past.length > 0 && (
-                    <li className="past-matches-section">
-                      <details>
-                        <summary className="past-matches-summary">
-                          Past group matches ({past.length})
-                        </summary>
-                        <ul className="match-list past-matches-list">
-                          {past.map(m => (
-                            <MatchCard key={m.id} match={m} tracked={selected} score={scores[m.id]} onInfo={setInfoCountry} isNext={false} />
-                          ))}
-                        </ul>
-                      </details>
-                    </li>
-                  )}
-                  {upcoming.map(m => (
-                    <MatchCard key={m.id} match={m} tracked={selected} score={scores[m.id]} onInfo={setInfoCountry} isNext={upcomingNextSet.has(m.id)} />
-                  ))}
-                </>
-              );
-            })()}
-
+          <>
+          <details className="bracket-section">
+            <summary className="bracket-section-summary">📅 Calendar</summary>
+            <CalendarView
+              matches={matches}
+              knockoutFixtures={knockoutFixtures}
+              scores={scores}
+              tracked={selected}
+              onInfo={handleInfo}
+            />
+          </details>
+          <div className="country-sections">
             {selected.map((country) => {
               const group = groupForCountry(country);
-              if (group === "?") return null;
-              const path = knockoutPathForCountry(country, group, knockoutFixtures);
-              if (path.length === 0) return null;
+              const accent = countryColor(country).accent;
+
+              // Group stage matches
+              const countryGroupMatches = allMatches.filter(m => m.home === country || m.away === country);
+              const liveGroup = countryGroupMatches.filter(m => scores[m.id]?.status === "in_progress");
+              const liveGroupIds = new Set(liveGroup.map(m => m.id));
+              const pastGroup = countryGroupMatches.filter(m => scores[m.id]?.status === "finished");
+              const upcomingGroup = countryGroupMatches.filter(m =>
+                !liveGroupIds.has(m.id) && scores[m.id]?.status !== "finished" &&
+                (scores[m.id]?.status === "scheduled" || !scores[m.id])
+              );
+
+              // Knockout path
+              const path = group !== "?" ? knockoutPathForCountry(country, group, knockoutFixtures) : [];
               const isTBD = (name: string) => /(group|round of|winner|place|runner|loser|quarterfinal|semifinal)/i.test(name);
               const opponentOf = (f: typeof path[0]) => f.home.toLowerCase() === country.toLowerCase() ? f.away : f.home;
               const pastKO = path.filter(f => f.score?.status === "finished");
               const upcomingKO = path.filter(f => f.score?.status !== "finished");
-              const confirmedKO = upcomingKO.filter(f => !isTBD(opponentOf(f)));
-              const potentialKO = upcomingKO.filter(f => isTBD(opponentOf(f)));
+              // "Confirmed" = country definitely plays this game (all prior path games finished).
+              // Opponent may still be TBD — that's fine, show candidates.
+              // "Potential" = country might not even get here (a prior path game is unfinished).
+              const confirmedKO = upcomingKO.filter((f) => {
+                const idx = path.indexOf(f);
+                return path.slice(0, idx).every(g => g.score?.status === "finished");
+              });
+              const potentialKO = upcomingKO.filter((f) => {
+                const idx = path.indexOf(f);
+                return !path.slice(0, idx).every(g => g.score?.status === "finished");
+              });
+
               return (
-                <li key={`ko-section-${country}`} className="potential-section">
-                  <ul className="match-list" style={{ listStyle: "none", padding: 0 }}>
-                    <li className="potential-divider">
-                      <span>{flag(country)} {country} · knockout path</span>
-                    </li>
-                    {pastKO.length > 0 && (
-                      <li className="past-matches-section">
-                        <details>
-                          <summary className="past-matches-summary">
-                            Past knockout games ({pastKO.length})
-                          </summary>
-                          <ul className="match-list past-matches-list">
-                            {pastKO.map((f) => (
-                              <PotentialMatchCard
-                                key={`${f.id}-${country}-past`}
-                                fixture={f}
-                                country={country}
-                                groupStandingsMap={groupStandingsMap}
-                                onInfo={setInfoCountry}
-                              />
+                <section key={country} className="country-section">
+                  <div className="country-section-header" style={{ borderLeftColor: accent }}>
+                    <span className="country-section-flag">{flag(country)}</span>
+                    <span className="country-section-name">{country}</span>
+                    {group !== "?" && <span className="country-section-group-badge">Group {group}</span>}
+                  </div>
+
+                  {/* Group Stage */}
+                  <div className="country-sub-section">
+                    <div className="country-sub-label">Group Stage</div>
+                    {liveGroup.length > 0 && (
+                      <ul className="match-list ko-confirmed-list">
+                        {liveGroup.map(m => (
+                          <MatchCard key={m.id} match={m} tracked={selected} score={scores[m.id]} onInfo={setInfoCountry} isNext={false} />
+                        ))}
+                      </ul>
+                    )}
+                    {upcomingGroup.length > 0 && (
+                      <ul className="match-list ko-confirmed-list">
+                        {upcomingGroup.map(m => (
+                          <MatchCard key={m.id} match={m} tracked={selected} score={scores[m.id]} onInfo={setInfoCountry} isNext={false} />
+                        ))}
+                      </ul>
+                    )}
+                    {pastGroup.length > 0 && (
+                      <details className="ko-details">
+                        <summary className="ko-details-summary">Past matches ({pastGroup.length})</summary>
+                        <ul className="match-list ko-details-list">
+                          {pastGroup.map(m => (
+                            <MatchCard key={m.id} match={m} tracked={selected} score={scores[m.id]} onInfo={setInfoCountry} isNext={false} />
+                          ))}
+                        </ul>
+                      </details>
+                    )}
+                  </div>
+
+                  {/* Knockout Path */}
+                  {path.length > 0 && (
+                    <div className="country-sub-section country-sub-section--knockout">
+                      <div className="country-sub-label">Knockout Path</div>
+
+                      {/* Past knockout — collapsible */}
+                      {pastKO.length > 0 && (
+                        <details className="ko-details">
+                          <summary className="ko-details-summary">Past knockout ({pastKO.length})</summary>
+                          <ul className="match-list ko-details-list">
+                            {pastKO.map(f => (
+                              <PotentialMatchCard key={`${f.id}-${country}-past`} fixture={f} country={country} groupStandingsMap={groupStandingsMap} knockoutFixtures={knockoutFixtures} onInfo={setInfoCountry} />
                             ))}
                           </ul>
                         </details>
-                      </li>
-                    )}
-                    {confirmedKO.map((f) => (
-                      <PotentialMatchCard
-                        key={`${f.id}-${country}-conf`}
-                        fixture={f}
-                        country={country}
-                        groupStandingsMap={groupStandingsMap}
-                        onInfo={setInfoCountry}
-                      />
-                    ))}
-                    {potentialKO.length > 0 && (
-                      <li className="past-matches-section">
-                        <details>
-                          <summary className="past-matches-summary">
-                            Potential games ({potentialKO.length})
-                          </summary>
-                          <ul className="match-list past-matches-list">
-                            {potentialKO.map((f) => (
-                              <PotentialMatchCard
-                                key={`${f.id}-${country}`}
-                                fixture={f}
-                                country={country}
-                                groupStandingsMap={groupStandingsMap}
-                                onInfo={setInfoCountry}
-                              />
+                      )}
+
+                      {/* Confirmed next game(s) — shown directly, not collapsible */}
+                      {confirmedKO.length > 0 && (
+                        <ul className="match-list ko-confirmed-list">
+                          {confirmedKO.map(f => (
+                            <PotentialMatchCard key={`${f.id}-${country}-conf`} fixture={f} country={country} groupStandingsMap={groupStandingsMap} knockoutFixtures={knockoutFixtures} onInfo={setInfoCountry} />
+                          ))}
+                        </ul>
+                      )}
+
+                      {/* Potential — collapsible */}
+                      {potentialKO.length > 0 && (
+                        <details className="ko-details">
+                          <summary className="ko-details-summary">Potential ({potentialKO.length})</summary>
+                          <ul className="match-list ko-details-list">
+                            {potentialKO.map(f => (
+                              <PotentialMatchCard key={`${f.id}-${country}`} fixture={f} country={country} groupStandingsMap={groupStandingsMap} knockoutFixtures={knockoutFixtures} onInfo={setInfoCountry} />
                             ))}
                           </ul>
                         </details>
-                      </li>
-                    )}
-                  </ul>
-                </li>
+                      )}
+                    </div>
+                  )}
+                </section>
               );
             })}
-          </ul>
+          </div>
+          </>
         )}
       </main>
 
@@ -264,6 +286,7 @@ export default function App() {
           country={infoCountry}
           scores={scores}
           allMatches={allMatches}
+          knockoutFixtures={knockoutFixtures}
           onClose={() => setInfoCountry(null)}
         />
       )}

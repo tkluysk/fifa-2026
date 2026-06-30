@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { flag } from "../countryInfo";
-import type { LiveScore } from "../hooks/useLiveData";
+import type { LiveScore, KnockoutFixture } from "../hooks/useLiveData";
 import type { Match } from "../matches";
 import { useCountryAnalysis } from "../hooks/useCountryAnalysis";
 import { useCountryData } from "../hooks/useCountryData";
@@ -14,12 +14,13 @@ interface Props {
   country: string;
   scores: Record<string, LiveScore>;
   allMatches: Match[];
+  knockoutFixtures: KnockoutFixture[];
   onClose: () => void;
 }
 
 const POS_ORDER: Record<string, number> = { G: 0, D: 1, M: 2, F: 3 };
 
-export function CountryModal({ country, scores, allMatches, onClose }: Props) {
+export function CountryModal({ country, scores, allMatches, knockoutFixtures, onClose }: Props) {
   const { data: countryMap, fetch: fetchCountryData } = useCountryData();
   const { data: analysis, loading: analysisLoading, error: analysisError, hasKey, fetchAnalysis } = useCountryAnalysis();
   const [squadView, setSquadView] = useState<"pitch" | "cards" | "table">("pitch");
@@ -80,14 +81,43 @@ export function CountryModal({ country, scores, allMatches, onClose }: Props) {
     return !s || s.status === "scheduled";
   });
 
-  // Pick the best match for lineup: live > last finished > next scheduled
-  const liveMatch = countryMatches.find(m => scores[m.id]?.status === "in_progress");
-  const lastFinished = [...playedMatches].sort((a, b) => b.startUtc.localeCompare(a.startUtc))[0];
-  const nextScheduled = upcomingMatches[0];
-  const lineupMatch = liveMatch ?? lastFinished ?? nextScheduled ?? null;
+  // Knockout fixtures involving this country (confirmed slot — real team name)
+  const koCountryFixtures = knockoutFixtures.filter(
+    f => f.home.toLowerCase() === country.toLowerCase() || f.away.toLowerCase() === country.toLowerCase()
+  );
+  const liveKoFixture = koCountryFixtures.find(f => f.score?.status === "in_progress");
+  const lastFinishedKoFixture = [...koCountryFixtures]
+    .filter(f => f.score?.status === "finished")
+    .sort((a, b) => b.startUtc.localeCompare(a.startUtc))[0];
 
-  const isLive = !!lineupMatch && scores[lineupMatch.id]?.status === "in_progress";
-  const { lineup } = useMatchLineup(lineupMatch?.id ?? null, country, isLive);
+  // Group-stage lineup candidates
+  const liveGroupMatch = countryMatches.find(m => scores[m.id]?.status === "in_progress");
+  const lastFinishedGroup = [...playedMatches].sort((a, b) => b.startUtc.localeCompare(a.startUtc))[0];
+  const nextScheduled = upcomingMatches[0];
+
+  // Prefer: live KO > live group > last finished KO > last finished group > next group
+  const lineupEventId: string | null =
+    liveKoFixture?.id ?? liveGroupMatch?.id ?? lastFinishedKoFixture?.id ?? lastFinishedGroup?.id ?? nextScheduled?.id ?? null;
+  const lineupIsLive = !!(liveKoFixture || liveGroupMatch);
+  const lineupStatus: "in_progress" | "finished" | "scheduled" =
+    (liveKoFixture || liveGroupMatch) ? "in_progress" :
+    (lastFinishedKoFixture || lastFinishedGroup) ? "finished" : "scheduled";
+  const lineupOpponent: string | null = liveKoFixture
+    ? (liveKoFixture.home.toLowerCase() === country.toLowerCase() ? liveKoFixture.away : liveKoFixture.home)
+    : liveGroupMatch
+      ? (liveGroupMatch.home === country ? liveGroupMatch.away : liveGroupMatch.home)
+      : lastFinishedKoFixture
+        ? (lastFinishedKoFixture.home.toLowerCase() === country.toLowerCase() ? lastFinishedKoFixture.away : lastFinishedKoFixture.home)
+        : lastFinishedGroup
+          ? (lastFinishedGroup.home === country ? lastFinishedGroup.away : lastFinishedGroup.home)
+          : nextScheduled
+            ? (nextScheduled.home === country ? nextScheduled.away : nextScheduled.home)
+            : null;
+
+  // Keep legacy alias for the group-game label fallback (used below)
+  const lineupMatch = !liveKoFixture && !lastFinishedKoFixture ? (liveGroupMatch ?? lastFinishedGroup ?? nextScheduled ?? null) : null;
+
+  const { lineup } = useMatchLineup(lineupEventId, country, lineupIsLive);
 
   // Sort roster: GK → DEF → MID → FWD, then by jersey number
   const roster = [...(cd?.roster ?? [])].sort((a, b) => {
@@ -163,63 +193,123 @@ export function CountryModal({ country, scores, allMatches, onClose }: Props) {
         ) : null}
 
         {/* Results + Upcoming */}
-        {(playedMatches.length > 0 || upcomingMatches.length > 0) && (
-          <section className="modal-section modal-results">
-            {playedMatches.length > 0 && (
-              <>
-                <h3>Results</h3>
-                <div className="result-list-header">
-                  <span>{country}</span>
-                  <span>Opp</span>
-                </div>
-                <div className="result-list">
-                  {playedMatches.map((m) => {
-                    const s = scores[m.id]!;
-                    const isHome = m.home === country;
-                    const opponent = isHome ? m.away : m.home;
-                    const goalsFor = isHome ? s.home : s.away;
-                    const goalsAgainst = isHome ? s.away : s.home;
-                    const outcome = goalsFor > goalsAgainst ? "W" : goalsFor < goalsAgainst ? "L" : "D";
-                    return (
-                      <div key={m.id} className={`result-row result-row--${outcome.toLowerCase()}`}>
-                        <span className={`result-badge result-badge--${outcome.toLowerCase()}`}>{outcome}</span>
-                        <span className="result-opponent">{flag(opponent)} {opponent}</span>
-                        <span className="result-score">
-                          <span className="result-score-us">{goalsFor}</span>
-                          <span className="result-score-sep">–</span>
-                          <span className="result-score-them">{goalsAgainst}</span>
-                        </span>
-                        {s.status === "in_progress" && <span className="live-badge" style={{fontSize:".65rem"}}>LIVE</span>}
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-            {upcomingMatches.length > 0 && (
-              <>
-                <h3 style={{ marginTop: playedMatches.length > 0 ? 16 : 0 }}>Upcoming</h3>
-                <div className="result-list">
-                  {upcomingMatches.map((m) => {
-                    const opponent = m.home === country ? m.away : m.home;
-                    const nzt = new Intl.DateTimeFormat("en-NZ", {
-                      timeZone: "Pacific/Auckland",
-                      weekday: "short", day: "numeric", month: "short",
-                      hour: "numeric", minute: "2-digit", hour12: true,
-                    }).format(new Date(m.startUtc));
-                    return (
-                      <div key={m.id} className="result-row result-row--upcoming">
-                        <span className="result-badge result-badge--upcoming">vs</span>
-                        <span className="result-opponent">{flag(opponent)} {opponent}</span>
-                        <span className="result-date">{nzt} NZT</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </section>
-        )}
+        {(() => {
+          const koMatches = knockoutFixtures.filter(
+            f => f.home === country || f.away === country
+          );
+          const koPlayed = koMatches.filter(f => f.score?.status === "finished" || f.score?.status === "in_progress");
+          const koUpcoming = koMatches.filter(f => !f.score || f.score.status === "scheduled");
+          const hasAnything = playedMatches.length > 0 || upcomingMatches.length > 0 || koPlayed.length > 0 || koUpcoming.length > 0;
+          if (!hasAnything) return null;
+          return (
+            <section className="modal-section modal-results">
+              {playedMatches.length > 0 && (
+                <>
+                  <h3>Group stage results</h3>
+                  <div className="result-list-header">
+                    <span>{country}</span>
+                    <span>Opp</span>
+                  </div>
+                  <div className="result-list">
+                    {playedMatches.map((m) => {
+                      const s = scores[m.id]!;
+                      const isHome = m.home === country;
+                      const opponent = isHome ? m.away : m.home;
+                      const goalsFor = isHome ? s.home : s.away;
+                      const goalsAgainst = isHome ? s.away : s.home;
+                      const outcome = goalsFor > goalsAgainst ? "W" : goalsFor < goalsAgainst ? "L" : "D";
+                      return (
+                        <div key={m.id} className={`result-row result-row--${outcome.toLowerCase()}`}>
+                          <span className={`result-badge result-badge--${outcome.toLowerCase()}`}>{outcome}</span>
+                          <span className="result-opponent">{flag(opponent)} {opponent}</span>
+                          <span className="result-score">
+                            <span className="result-score-us">{goalsFor}</span>
+                            <span className="result-score-sep">–</span>
+                            <span className="result-score-them">{goalsAgainst}</span>
+                          </span>
+                          {s.status === "in_progress" && <span className="live-badge" style={{fontSize:".65rem"}}>LIVE</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+              {upcomingMatches.length > 0 && (
+                <>
+                  <h3 style={{ marginTop: playedMatches.length > 0 ? 16 : 0 }}>Upcoming group games</h3>
+                  <div className="result-list">
+                    {upcomingMatches.map((m) => {
+                      const opponent = m.home === country ? m.away : m.home;
+                      const nzt = new Intl.DateTimeFormat("en-NZ", {
+                        timeZone: "Pacific/Auckland",
+                        weekday: "short", day: "numeric", month: "short",
+                        hour: "numeric", minute: "2-digit", hour12: true,
+                      }).format(new Date(m.startUtc));
+                      return (
+                        <div key={m.id} className="result-row result-row--upcoming">
+                          <span className="result-badge result-badge--upcoming">vs</span>
+                          <span className="result-opponent">{flag(opponent)} {opponent}</span>
+                          <span className="result-date">{nzt} NZT</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+              {koPlayed.length > 0 && (
+                <>
+                  <h3 style={{ marginTop: 16 }}>Knockout results</h3>
+                  <div className="result-list">
+                    {koPlayed.map((f) => {
+                      const s = f.score!;
+                      const isHome = f.home === country;
+                      const opponent = isHome ? f.away : f.home;
+                      const goalsFor = isHome ? s.home : s.away;
+                      const goalsAgainst = isHome ? s.away : s.home;
+                      const outcome = goalsFor > goalsAgainst ? "W" : goalsFor < goalsAgainst ? "L" : "D";
+                      return (
+                        <div key={f.id} className={`result-row result-row--${outcome.toLowerCase()}`}>
+                          <span className={`result-badge result-badge--${outcome.toLowerCase()}`}>{outcome}</span>
+                          <span className="result-opponent">{flag(opponent)} {opponent}</span>
+                          <span className="result-stage">{f.stage}</span>
+                          <span className="result-score">
+                            <span className="result-score-us">{goalsFor}</span>
+                            <span className="result-score-sep">–</span>
+                            <span className="result-score-them">{goalsAgainst}</span>
+                          </span>
+                          {s.status === "in_progress" && <span className="live-badge" style={{fontSize:".65rem"}}>LIVE</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+              {koUpcoming.length > 0 && (
+                <>
+                  <h3 style={{ marginTop: 16 }}>Upcoming knockout games</h3>
+                  <div className="result-list">
+                    {koUpcoming.map((f) => {
+                      const opponent = f.home === country ? f.away : f.home;
+                      const nzt = new Intl.DateTimeFormat("en-NZ", {
+                        timeZone: "Pacific/Auckland",
+                        weekday: "short", day: "numeric", month: "short",
+                        hour: "numeric", minute: "2-digit", hour12: true,
+                      }).format(new Date(f.startUtc));
+                      return (
+                        <div key={f.id} className="result-row result-row--upcoming">
+                          <span className="result-badge result-badge--upcoming">vs</span>
+                          <span className="result-opponent">{flag(opponent)} {opponent}</span>
+                          <span className="result-stage">{f.stage}</span>
+                          <span className="result-date">{nzt} NZT</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </section>
+          );
+        })()}
 
         {/* AI Analysis */}
         <section className="modal-section modal-analysis">
@@ -269,11 +359,11 @@ export function CountryModal({ country, scores, allMatches, onClose }: Props) {
               </div>
             </div>
 
-            {squadView === "pitch" && lineupMatch && lineup && (
+            {squadView === "pitch" && lineupOpponent && lineup && (
               <p className="pitch-lineup-label">
-                {scores[lineupMatch.id]?.status === "in_progress" ? "🔴 Live lineup" :
-                 scores[lineupMatch.id]?.status === "finished" ? `Lineup vs ${lineupMatch.home === country ? lineupMatch.away : lineupMatch.home}` :
-                 `Expected lineup vs ${lineupMatch.home === country ? lineupMatch.away : lineupMatch.home}`}
+                {lineupStatus === "in_progress" ? "🔴 Live lineup" :
+                 lineupStatus === "finished" ? `Lineup vs ${lineupOpponent}` :
+                 `Expected lineup vs ${lineupOpponent}`}
               </p>
             )}
             {squadView === "pitch" ? (

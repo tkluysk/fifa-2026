@@ -78,9 +78,10 @@ export interface LiveData {
 /**
  * Resolves a bracket slot label like "Third Place Group A/E/H/I/J" or
  * "Group G Winner" into a list of candidate team names from live standings.
- * Returns [] for abstract labels like "Round of 32 2 Winner".
+ * Also resolves "Round of 32 N Winner" / "Round of 16 N Winner" etc. by
+ * looking up the actual winner of the Nth fixture in that stage.
  */
-export function resolveSlot(slot: string, gsMap: GroupStandingsMap): string[] {
+export function resolveSlot(slot: string, gsMap: GroupStandingsMap, knockoutFixtures?: KnockoutFixture[]): string[] {
   const lower = slot.toLowerCase();
 
   // "Group X Winner" → 1st in that group
@@ -104,6 +105,108 @@ export function resolveSlot(slot: string, gsMap: GroupStandingsMap): string[] {
     return groups
       .map((g) => gsMap[g.trim()]?.[2])
       .filter((t): t is string => !!t);
+  }
+
+  // "Round of 32 N Winner" / "Round of 16 N Winner" / etc.
+  // Resolve by finding the Nth (1-based, date-sorted) fixture in that stage
+  // and returning the actual winner if the match is finished.
+  if (knockoutFixtures) {
+    const stageWinnerMatch = slot.match(/^(Round of \d+|Quarter-final|Semi-final|Quarterfinal|Semifinal)\s+(\d+)\s+winner$/i);
+    if (stageWinnerMatch) {
+      const stageRaw = stageWinnerMatch[1];
+      const num = parseInt(stageWinnerMatch[2], 10);
+      // Normalise label variations to our stage names
+      const stageNorm: Record<string, string> = {
+        "round of 32": "Round of 32",
+        "round of 16": "Round of 16",
+        "quarter-final": "Quarter-final",
+        "quarterfinal": "Quarter-final",
+        "semi-final": "Semi-final",
+        "semifinal": "Semi-final",
+      };
+      const stage = stageNorm[stageRaw.toLowerCase()];
+      if (stage) {
+        const stageFixtures = knockoutFixtures
+          .filter(f => f.stage === stage)
+          .sort((a, b) => parseInt(a.id) - parseInt(b.id));
+        const fixture = stageFixtures[num - 1];
+        if (fixture?.score?.status === "finished") {
+          const { home, away, score } = fixture;
+          const winner = score.home > score.away ? home : score.away > score.home ? away : null;
+          if (winner) return [winner];
+        }
+        // Match not yet finished — return both teams as candidates if known
+        if (fixture) {
+          const candidates = [fixture.home, fixture.away].filter(
+            t => !/(group|round of|winner|place|runner|loser|quarterfinal|semifinal|third)/i.test(t)
+          );
+          if (candidates.length) return candidates;
+        }
+      }
+    }
+  }
+
+  return [];
+}
+
+/**
+ * Recursively collects ALL possible teams that could appear in a bracket slot,
+ * following the bracket tree all the way to R32 leaves.
+ *
+ * Differs from resolveSlot in that it recurses through multiple rounds:
+ * "Round of 16 5 Winner" → finds R16-5 fixture → if unresolved, recursively
+ * collects both feeders' upstream teams (e.g. Brazil + Netherlands + Morocco).
+ */
+export function upstreamTeams(
+  slot: string,
+  gsMap: GroupStandingsMap,
+  knockoutFixtures: KnockoutFixture[],
+  depth = 0
+): string[] {
+  if (depth > 5) return [];
+
+  // Real team name
+  if (!/(group|round of|winner|place|runner|loser|quarterfinal|semifinal|third)/i.test(slot)) {
+    return [slot];
+  }
+
+  // Group stage slots → resolveSlot handles all group patterns
+  if (/^(group |third place group)/i.test(slot)) {
+    return resolveSlot(slot, gsMap, knockoutFixtures);
+  }
+
+  // Knockout slot: "Round of 32 N Winner", "Round of 16 N Winner", etc.
+  const m = slot.match(/^(Round of \d+|Quarter-final|Semi-final|Quarterfinal|Semifinal)\s+(\d+)\s+winner$/i);
+  if (m) {
+    const stageNorm: Record<string, string> = {
+      "round of 32":   "Round of 32",
+      "round of 16":   "Round of 16",
+      "quarter-final": "Quarter-final",
+      "quarterfinal":  "Quarter-final",
+      "semi-final":    "Semi-final",
+      "semifinal":     "Semi-final",
+    };
+    const stage = stageNorm[m[1].toLowerCase()];
+    const num = parseInt(m[2], 10);
+    if (stage) {
+      const stageFixtures = knockoutFixtures
+        .filter(f => f.stage === stage)
+        .sort((a, b) => parseInt(a.id) - parseInt(b.id));
+      const fixture = stageFixtures[num - 1];
+      if (fixture) {
+        if (fixture.score?.status === "finished") {
+          const winner = fixture.score.home > fixture.score.away ? fixture.home
+            : fixture.score.away > fixture.score.home ? fixture.away
+            : null;
+          return winner ? [winner] : [];
+        }
+        // Unresolved: collect all teams reachable from both sides
+        return [
+          ...upstreamTeams(fixture.home, gsMap, knockoutFixtures, depth + 1),
+          ...upstreamTeams(fixture.away, gsMap, knockoutFixtures, depth + 1),
+        ];
+      }
+    }
   }
 
   return [];
@@ -316,7 +419,58 @@ function parseKnockoutFixtures(events: unknown[]): KnockoutFixture[] {
       away,
     };
     if (isFinished || isLive) {
-      fixture.score = { home: homeScore, away: awayScore, status: liveStatus };
+      const clock = ((comp.status as Record<string, unknown>)?.displayClock as string) ?? undefined;
+      const details = (comp.details ?? []) as Record<string, unknown>[];
+      const homeTeamId = (() => {
+        for (const c of competitors) {
+          const cc = c as Record<string, unknown>;
+          if (cc.homeAway === "home") return ((cc.team as Record<string, unknown>)?.id as string) ?? "";
+        }
+        return "";
+      })();
+      const homeCards: MatchCard[] = [];
+      const awayCards: MatchCard[] = [];
+      const homeGoals: GoalEvent[] = [];
+      const awayGoals: GoalEvent[] = [];
+      const homeSubs: SubEvent[] = [];
+      const awaySubs: SubEvent[] = [];
+      for (const d of details) {
+        const isYellow = !!(d.yellowCard);
+        const isRed = !!(d.redCard);
+        const isGoal = !!(d.scoringPlay);
+        const isSub = !!(d.substitution);
+        const minute = ((d.clock as Record<string, unknown>)?.displayValue as string) ?? "";
+        const athletes = (d.athletesInvolved ?? []) as Record<string, unknown>[];
+        const player = (athletes[0]?.shortName as string) ?? (athletes[0]?.displayName as string) ?? "";
+        const teamId = ((d.team as Record<string, unknown>)?.id as string) ?? "";
+        if (isGoal) {
+          const goal: GoalEvent = { player, minute, ownGoal: !!(d.ownGoal), penalty: !!(d.penaltyKick) };
+          (teamId === homeTeamId ? homeGoals : awayGoals).push(goal);
+        } else if (isSub) {
+          const playerOff = (athletes[1]?.shortName as string) ?? (athletes[1]?.displayName as string) ?? "";
+          const sub: SubEvent = { playerOn: player, playerOff, minute };
+          (teamId === homeTeamId ? homeSubs : awaySubs).push(sub);
+        } else if (isYellow || isRed) {
+          const type: MatchCard["type"] = isRed && isYellow ? "yellow-red" : isRed ? "red" : "yellow";
+          (teamId === homeTeamId ? homeCards : awayCards).push({ player, minute, type });
+        }
+      }
+      let stats: MatchStats | undefined;
+      for (const c of competitors) {
+        const cc = c as Record<string, unknown>;
+        const isHome = cc.homeAway === "home";
+        const statsList = (cc.statistics ?? []) as Record<string, unknown>[];
+        for (const s of statsList) {
+          const name = s.name as string;
+          const val = parseFloat(s.value as string);
+          if (isNaN(val)) continue;
+          if (!stats) stats = {};
+          if (name === "possessionPct") isHome ? (stats.homePossession = val) : (stats.awayPossession = val);
+          if (name === "totalShots") isHome ? (stats.homeShots = val) : (stats.awayShots = val);
+          if (name === "shotsOnTarget") isHome ? (stats.homeShotsOnTarget = val) : (stats.awayShotsOnTarget = val);
+        }
+      }
+      fixture.score = { home: homeScore, away: awayScore, status: liveStatus, clock, homeCards, awayCards, homeSubs, awaySubs, homeGoals, awayGoals, stats };
     }
     fixtures.push(fixture);
   }
@@ -372,10 +526,10 @@ function winnerSlotLabel(fixture: KnockoutFixture, fixtures: KnockoutFixture[]):
   const nextStage = nextStageName[fixture.stage];
   if (!nextStage) return null;
 
-  // Sort this stage's fixtures by date — gives us a stable 1-based index
+  // Sort this stage's fixtures by ESPN event ID — ESPN slot numbers match ID order
   const sameStage = fixtures
     .filter(f => f.stage === fixture.stage)
-    .sort((a, b) => a.startUtc.localeCompare(b.startUtc));
+    .sort((a, b) => parseInt(a.id) - parseInt(b.id));
   const myIdx = sameStage.findIndex(f => f.id === fixture.id);
   if (myIdx === -1) return null;
 
@@ -439,11 +593,24 @@ export function knockoutPathForCountry(
 
   // Chain: each step we find the winner-slot label for the current fixture,
   // then search for the next fixture that contains that label.
+  // If ESPN has already resolved the slot to the actual team name (e.g. after
+  // the team wins), fall back to searching by team name directly.
   let current = r32;
   for (let depth = 0; depth < 4; depth++) {
     const lbl = winnerSlotLabel(current, fixtures);
     if (!lbl) break;
-    const next = findFixtureContaining(lbl);
+    let next = findFixtureContaining(lbl);
+    if (!next) {
+      // ESPN may have replaced the slot label with the real team name once the
+      // country wins — search by team name in the expected next stage only.
+      const collectedIds = new Set(path.map(f => f.id));
+      next = fixtures.find(f => {
+        if (collectedIds.has(f.id)) return false;
+        const h = f.home.toLowerCase();
+        const a = f.away.toLowerCase();
+        return h === lower || a === lower;
+      });
+    }
     if (!next) break;
     path.push(next);
     current = next;
@@ -490,7 +657,7 @@ export function useLiveData(): LiveData {
         const knockouts = parseKnockoutFixtures(knockoutJson.events ?? []);
         fetchedScores = parsed;
 
-        // Fetch subs from summary for live (and recently finished) games
+        // Fetch subs from summary for live group games
         const liveIds = Object.entries(parsed)
           .filter(([, s]) => s.status === "in_progress")
           .map(([id]) => id);
@@ -502,7 +669,22 @@ export function useLiveData(): LiveData {
           }
         }
 
-        // Build group standings map
+        // Fetch subs from summary for live knockout games
+        const liveKoIds = knockouts
+          .filter(f => f.score?.status === "in_progress")
+          .map(f => f.id);
+        if (liveKoIds.length > 0) {
+          const koSubsResults = await Promise.all(liveKoIds.map(id => fetchSubsForEvent(id)));
+          for (let i = 0; i < liveKoIds.length; i++) {
+            const fixture = knockouts.find(f => f.id === liveKoIds[i]);
+            if (fixture?.score) {
+              fixture.score = { ...fixture.score, ...koSubsResults[i] };
+            }
+          }
+        }
+
+        // Build group standings map, sorted by ESPN's R (rank) field.
+        // We do NOT use array position — ESPN does not guarantee sorted order.
         const gsMap: GroupStandingsMap = {};
 
         for (const group of standingsJson.children ?? []) {
@@ -524,13 +706,21 @@ export function useLiveData(): LiveData {
             };
           });
 
-          // Sort by ESPN rank for gsMap (1st, 2nd, 3rd, 4th)
-          const sortedByRank = [...ranked].sort((a, b) => a.rank - b.rank);
-          gsMap[letter] = sortedByRank.map(r => r.team);
+          gsMap[letter] = [...ranked].sort((a, b) => a.rank - b.rank).map(r => r.team);
         }
 
-        // Use R32 fixture data as ground truth for advanced/eliminated.
-        // ESPN's ADV flag is unreliable for 3rd-place qualifiers.
+        // Advancement source of truth: teams with confirmed real names in R32 fixtures.
+        //
+        // Why not ESPN's ADV flag?
+        //   In a 48-team tournament, 1st and 2nd place advance automatically, but the
+        //   best 8 of 12 third-place teams also advance. ESPN sets ADV=1 for 1st/2nd
+        //   immediately, but does NOT reliably set ADV=1 for qualifying 3rd-place teams.
+        //   Using ADV alone caused false "still in it" for 3rd-placers that didn't qualify.
+        //
+        // Why R32 fixtures?
+        //   Once the group stage ends, ESPN populates the R32 bracket with real team names.
+        //   Any team with a real (non-placeholder) name in a Round of 32 slot has confirmed
+        //   advancement. This works dynamically for any future tournament.
         const isTBDSlot = (s: string) => /(group|round of|winner|place|runner|loser|quarterfinal|semifinal|third)/i.test(s);
         const advanced = new Set<string>();
         for (const f of knockouts) {
@@ -539,16 +729,18 @@ export function useLiveData(): LiveData {
           if (!isTBDSlot(f.away)) advanced.add(normaliseTeamName(f.away));
         }
 
-        // Eliminated = group fully played (all 4 teams at GP>=3) + not confirmed in R32
+        // A team is eliminated when their group is fully complete (all teams at GP≥3)
+        // and they are not confirmed in the R32. Teams whose group is still playing are
+        // never marked eliminated, even if they can't mathematically advance.
         const eliminated = new Set<string>();
         for (const group of standingsJson.children ?? []) {
           const entries: { team: { displayName: string }; stats: { abbreviation: string; value: number }[] }[] =
             group.standings?.entries ?? [];
           const teams = entries.map(e => ({
             team: normaliseTeamName(e.team.displayName),
-            gp: entries[0] && (e.stats.find(s => s.abbreviation === "GP")?.value ?? 0),
+            gp: e.stats.find(s => s.abbreviation === "GP")?.value ?? 0,
           }));
-          const groupDone = teams.every(t => (t.gp as number) >= 3);
+          const groupDone = teams.every(t => t.gp >= 3);
           if (!groupDone) continue;
           for (const { team } of teams) {
             if (!advanced.has(team)) eliminated.add(team);

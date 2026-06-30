@@ -212,7 +212,7 @@ function EventCell({ ev }: { ev: TimelineEvent }) {
   return null;
 }
 
-function MatchTimeline({ score, isLive }: { score: LiveScore; isLive: boolean }) {
+export function MatchTimeline({ score, isLive }: { score: LiveScore; isLive: boolean }) {
   const events = buildTimeline(score, isLive);
   if (!events.length) return null;
 
