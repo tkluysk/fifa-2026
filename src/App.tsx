@@ -190,6 +190,15 @@ export default function App() {
                 return !path.slice(0, idx).every(g => g.score?.status === "finished");
               });
 
+              // Next game = earliest non-live, non-finished confirmed game (group or KO)
+              const upcomingGroupGames = upcomingGroup.filter(m => scores[m.id]?.status !== "in_progress");
+              const upcomingConfirmedKO = confirmedKO.filter(f => f.score?.status !== "in_progress");
+              const candidates = [
+                ...upcomingGroupGames.map(m => ({ id: m.id, t: new Date(m.startUtc).getTime(), kind: "group" as const })),
+                ...upcomingConfirmedKO.map(f => ({ id: f.id, t: new Date(f.startUtc).getTime(), kind: "ko" as const })),
+              ].sort((a, b) => a.t - b.t);
+              const nextGameId = candidates[0]?.id ?? null;
+
               return (
                 <section key={country} className="country-section">
                   <div className="country-section-header" style={{ borderLeftColor: accent }}>
@@ -204,14 +213,14 @@ export default function App() {
                     {liveGroup.length > 0 && (
                       <ul className="match-list ko-confirmed-list">
                         {liveGroup.map(m => (
-                          <MatchCard key={m.id} match={m} tracked={selected} score={scores[m.id]} onInfo={setInfoCountry} isNext={false} />
+                          <MatchCard key={m.id} match={m} tracked={selected} score={scores[m.id]} onInfo={setInfoCountry} isNext={m.id === nextGameId} />
                         ))}
                       </ul>
                     )}
                     {upcomingGroup.length > 0 && (
                       <ul className="match-list ko-confirmed-list">
                         {upcomingGroup.map(m => (
-                          <MatchCard key={m.id} match={m} tracked={selected} score={scores[m.id]} onInfo={setInfoCountry} isNext={false} />
+                          <MatchCard key={m.id} match={m} tracked={selected} score={scores[m.id]} onInfo={setInfoCountry} isNext={m.id === nextGameId} />
                         ))}
                       </ul>
                     )}
@@ -220,7 +229,7 @@ export default function App() {
                         <summary className="ko-details-summary">Past matches ({pastGroup.length})</summary>
                         <ul className="match-list ko-details-list">
                           {pastGroup.map(m => (
-                            <MatchCard key={m.id} match={m} tracked={selected} score={scores[m.id]} onInfo={setInfoCountry} isNext={false} />
+                            <MatchCard key={m.id} match={m} tracked={selected} score={scores[m.id]} onInfo={setInfoCountry} />
                           ))}
                         </ul>
                       </details>
@@ -248,7 +257,7 @@ export default function App() {
                       {confirmedKO.length > 0 && (
                         <ul className="match-list ko-confirmed-list">
                           {confirmedKO.map(f => (
-                            <PotentialMatchCard key={`${f.id}-${country}-conf`} fixture={f} country={country} groupStandingsMap={groupStandingsMap} knockoutFixtures={knockoutFixtures} onInfo={setInfoCountry} />
+                            <PotentialMatchCard key={`${f.id}-${country}-conf`} fixture={f} country={country} groupStandingsMap={groupStandingsMap} knockoutFixtures={knockoutFixtures} onInfo={setInfoCountry} isNext={f.id === nextGameId} />
                           ))}
                         </ul>
                       )}

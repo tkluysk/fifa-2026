@@ -9,6 +9,7 @@ import { PlayerCard } from "./PlayerCard";
 import { PitchView } from "./PitchView";
 import { Tip } from "./Tip";
 import { countryColor } from "../countryInfo";
+import { formatLocalTime } from "../dateUtils";
 
 interface Props {
   country: string;
@@ -237,16 +238,11 @@ export function CountryModal({ country, scores, allMatches, knockoutFixtures, on
                   <div className="result-list">
                     {upcomingMatches.map((m) => {
                       const opponent = m.home === country ? m.away : m.home;
-                      const nzt = new Intl.DateTimeFormat("en-NZ", {
-                        timeZone: "Pacific/Auckland",
-                        weekday: "short", day: "numeric", month: "short",
-                        hour: "numeric", minute: "2-digit", hour12: true,
-                      }).format(new Date(m.startUtc));
                       return (
                         <div key={m.id} className="result-row result-row--upcoming">
                           <span className="result-badge result-badge--upcoming">vs</span>
                           <span className="result-opponent">{flag(opponent)} {opponent}</span>
-                          <span className="result-date">{nzt} NZT</span>
+                          <span className="result-date">{formatLocalTime(m.startUtc)}</span>
                         </div>
                       );
                     })}
@@ -287,17 +283,12 @@ export function CountryModal({ country, scores, allMatches, knockoutFixtures, on
                   <div className="result-list">
                     {koUpcoming.map((f) => {
                       const opponent = f.home === country ? f.away : f.home;
-                      const nzt = new Intl.DateTimeFormat("en-NZ", {
-                        timeZone: "Pacific/Auckland",
-                        weekday: "short", day: "numeric", month: "short",
-                        hour: "numeric", minute: "2-digit", hour12: true,
-                      }).format(new Date(f.startUtc));
                       return (
                         <div key={f.id} className="result-row result-row--upcoming">
                           <span className="result-badge result-badge--upcoming">vs</span>
                           <span className="result-opponent">{flag(opponent)} {opponent}</span>
                           <span className="result-stage">{f.stage}</span>
-                          <span className="result-date">{nzt} NZT</span>
+                          <span className="result-date">{formatLocalTime(f.startUtc)}</span>
                         </div>
                       );
                     })}

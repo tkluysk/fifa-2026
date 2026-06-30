@@ -10,6 +10,7 @@ import { createPortal } from "react-dom";
 import type { KnockoutFixture, GroupStandingsMap } from "../hooks/useLiveData";
 import { upstreamTeams, knockoutPathForCountry } from "../hooks/useLiveData";
 import { flag, countryColor } from "../countryInfo"; // countryColor used in FocusedBracket
+import { formatLocalTime } from "../dateUtils";
 const TVNZ_BASE = "https://www.tvnz.co.nz";
 
 function CalIcon({ size = 13 }: { size?: number }) {
@@ -230,11 +231,7 @@ function FlowCard({ fixture, country, gsMap, accent, knockoutFixtures }: {
   const won = finished && myScore !== undefined && theirScore !== undefined && myScore > theirScore;
   const lost = finished && myScore !== undefined && theirScore !== undefined && myScore < theirScore;
 
-  const nzt = new Intl.DateTimeFormat("en-NZ", {
-    timeZone: "Pacific/Auckland",
-    day: "numeric", month: "short",
-    hour: "numeric", minute: "2-digit", hour12: true,
-  }).format(new Date(fixture.startUtc));
+  const nzt = formatLocalTime(fixture.startUtc);
 
   const tvnz = tvnzUrl(fixture);
 
@@ -514,11 +511,7 @@ function FullCard({ fixture, highlighted, gsMap, tracked, knockoutFixtures }: {
   const awayWon = finished && (fixture.score!.away > fixture.score!.home);
   const tvnz = tvnzUrl(fixture);
 
-  const nzt = new Intl.DateTimeFormat("en-NZ", {
-    timeZone: "Pacific/Auckland",
-    day: "numeric", month: "short",
-    hour: "numeric", minute: "2-digit", hour12: true,
-  }).format(new Date(fixture.startUtc));
+  const nzt = formatLocalTime(fixture.startUtc);
 
   return (
     <div

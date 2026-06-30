@@ -3,6 +3,7 @@ import { upstreamTeams } from "../hooks/useLiveData";
 import { countryColor, flag } from "../countryInfo";
 import { tempForCity } from "../cityTemps";
 import { MatchTimeline } from "./MatchCard";
+import { formatLocalTime } from "../dateUtils";
 
 function CalIcon() {
   return (
@@ -18,7 +19,6 @@ function CalIcon() {
 }
 
 const TVNZ_BASE = "https://www.tvnz.co.nz";
-const NZT = "Pacific/Auckland";
 
 interface Props {
   fixture: KnockoutFixture;
@@ -26,6 +26,7 @@ interface Props {
   groupStandingsMap: GroupStandingsMap;
   knockoutFixtures: KnockoutFixture[];
   onInfo?: (country: string) => void;
+  isNext?: boolean;
 }
 
 function gcalUrl(f: KnockoutFixture, country: string): string {
@@ -57,7 +58,7 @@ function stageCode(stage: string): string {
   return stage.slice(0, 3).toUpperCase();
 }
 
-export function PotentialMatchCard({ fixture, country, groupStandingsMap, knockoutFixtures, onInfo }: Props) {
+export function PotentialMatchCard({ fixture, country, groupStandingsMap, knockoutFixtures, onInfo, isNext }: Props) {
   const homeColor = countryColor(country);
   // When future fixtures still carry slot labels (e.g. "Round of 16 2 Winner"),
   // we can't compare to the country name directly — check upstream teams instead.
@@ -74,11 +75,7 @@ export function PotentialMatchCard({ fixture, country, groupStandingsMap, knocko
   const awayColor = opponentKnown ? countryColor(opponentSlot) : { bg: "var(--surface)", accent: "var(--border)" };
   const tvnzLink = fixture.tvnzPath ? `${TVNZ_BASE}${fixture.tvnzPath}` : null;
 
-  const nzt = new Intl.DateTimeFormat("en-NZ", {
-    timeZone: NZT,
-    weekday: "short", day: "numeric", month: "short",
-    hour: "numeric", minute: "2-digit", hour12: true,
-  }).format(new Date(fixture.startUtc));
+  const nzt = formatLocalTime(fixture.startUtc);
 
   const isLive = fixture.score?.status === "in_progress";
   const isScored = fixture.score && (fixture.score.status === "finished" || isLive);
@@ -86,7 +83,7 @@ export function PotentialMatchCard({ fixture, country, groupStandingsMap, knocko
   const theirScore = fixture.score ? (isHome ? fixture.score.away : fixture.score.home) : undefined;
 
   return (
-    <li className="match-card potential" style={{
+    <li className={`match-card potential${isNext ? " match-card--next" : ""}`} style={{
       background: `linear-gradient(105deg, ${homeColor.bg} 0%, ${homeColor.bg} 45%, var(--surface) 50%, ${awayColor.bg} 55%, ${awayColor.bg} 100%)`,
       borderLeft: `3px solid ${homeColor.accent}`,
       borderRight: `3px solid ${awayColor.accent}`,
@@ -98,9 +95,10 @@ export function PotentialMatchCard({ fixture, country, groupStandingsMap, knocko
       <div className="match-meta">
         <span className="potential-badge">{stageCode(fixture.stage)}</span>
         <span className="potential-label">{fixture.stage}</span>
+        {isNext && !isLive && <span className="next-badge">NEXT</span>}
         {isLive && <span className="live-badge">LIVE</span>}
         {fixture.score?.status === "finished" && <span className="past-badge">FT</span>}
-        <span>{nzt} NZT</span>
+        <span className={isNext && !isLive ? "match-date--next" : ""}>{nzt}</span>
         {tvnzLink && <a href={tvnzLink} target="_blank" rel="noreferrer" className="btn-tvnz-inline">📺 TVNZ+</a>}
         <a className="btn-cal-side" href={gcalUrl(fixture, country)} target="_blank" rel="noreferrer" title="Add to Google Calendar">
           <CalIcon />

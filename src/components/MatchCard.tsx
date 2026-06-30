@@ -3,6 +3,7 @@ import { gcalUrl, tvnzUrl } from "../matches";
 import { flag, countryColor } from "../countryInfo";
 import type { LiveScore, GoalEvent, MatchCard as CardEvent, SubEvent } from "../hooks/useLiveData";
 import { tempForCity } from "../cityTemps";
+import { formatLocalTime } from "../dateUtils";
 
 function CalIcon() {
   return (
@@ -23,20 +24,6 @@ interface Props {
   score?: LiveScore;
   onInfo: (country: string) => void;
   isNext?: boolean;
-}
-
-const NZT = "Pacific/Auckland";
-
-function formatNZT(iso: string) {
-  return new Intl.DateTimeFormat("en-NZ", {
-    timeZone: NZT,
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  }).format(new Date(iso));
 }
 
 function matchStatus(iso: string, live?: LiveScore): "upcoming" | "live" | "past" {
@@ -84,7 +71,7 @@ export function MatchCard({ match, tracked, score, onInfo, isNext }: Props) {
         {isNext && <span className="next-badge">NEXT</span>}
         {status === "live" && <span className="live-badge">LIVE</span>}
         {status === "past" && <span className="past-badge">FT</span>}
-        <span>{formatNZT(match.startUtc)} NZT</span>
+        <span className={isNext && status !== "live" ? "match-date--next" : ""}>{formatLocalTime(match.startUtc)}</span>
         {stream && (
           <a className="btn-tvnz-inline" href={stream} target="_blank" rel="noreferrer">📺 TVNZ+</a>
         )}

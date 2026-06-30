@@ -98,12 +98,12 @@ async function fetchLiveContext(country: string): Promise<LiveContext> {
       matchLines.push(`  [${roundLabel}] ${home} ${homeScore}–${awayScore} ${away} [LIVE${min}]`);
     } else {
       const dt = new Date(event.date as string);
-      const nzt = new Intl.DateTimeFormat("en-NZ", {
-        timeZone: "Pacific/Auckland",
+      const localTime = new Intl.DateTimeFormat(undefined, {
         weekday: "short", day: "numeric", month: "short",
         hour: "numeric", minute: "2-digit", hour12: true,
+        timeZoneName: "short",
       }).format(dt);
-      matchLines.push(`  [${roundLabel}] ${home} vs ${away} — scheduled ${nzt} NZT`);
+      matchLines.push(`  [${roundLabel}] ${home} vs ${away} — scheduled ${localTime}`);
     }
   }
 

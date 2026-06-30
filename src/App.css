@@ -816,6 +816,12 @@ details[open] .ko-details-summary::before { content: "▼"; }
 }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
 
+.match-date--next {
+  color: var(--text);
+  font-weight: 700;
+  font-size: .85rem;
+}
+
 /* Teams + score row — 3-column grid for perfect symmetry */
 .match-teams {
   display: grid;
