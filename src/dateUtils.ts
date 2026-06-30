@@ -1,3 +1,8 @@
+export function isNewZealand(): boolean {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return tz === "Pacific/Auckland" || tz === "Pacific/Chatham";
+}
+
 export function userCity(): string {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone; // e.g. "Pacific/Auckland"
   return tz.split("/").pop()!.replace(/_/g, " ");             // → "Auckland"

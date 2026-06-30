@@ -10,7 +10,7 @@ import { createPortal } from "react-dom";
 import type { KnockoutFixture, GroupStandingsMap } from "../hooks/useLiveData";
 import { upstreamTeams, knockoutPathForCountry } from "../hooks/useLiveData";
 import { flag, countryColor } from "../countryInfo"; // countryColor used in FocusedBracket
-import { formatLocalDate } from "../dateUtils";
+import { formatLocalDate, isNewZealand } from "../dateUtils";
 const TVNZ_BASE = "https://www.tvnz.co.nz";
 
 function CalIcon({ size = 13 }: { size?: number }) {
@@ -275,7 +275,7 @@ function FlowCard({ fixture, country, gsMap, accent, knockoutFixtures, isNext }:
         )}
       </div>
       <div className="bracket-flow-footer">
-        {tvnz && <a className="bracket-flow-tvnz" href={tvnz} target="_blank" rel="noreferrer">📺</a>}
+        {tvnz && known && isNewZealand() && <a className="bracket-flow-tvnz" href={tvnz} target="_blank" rel="noreferrer">📺</a>}
         <a className="bracket-cal-btn" href={gcalUrl(fixture)} target="_blank" rel="noreferrer" title="Add to Google Calendar">
           <CalIcon size={11} />
         </a>
@@ -546,7 +546,7 @@ function FullCard({ fixture, highlighted, gsMap, tracked, knockoutFixtures, isNe
       <FullTeamRow name={fixture.away} score={fixture.score?.away} won={awayWon} lost={finished && !awayWon} gsMap={gsMap} tracked={tracked} knockoutFixtures={knockoutFixtures} />
       <div className="bracket-full-footer">
         <span className="bracket-full-date">{nzt}</span>
-        {tvnz && <a className="bracket-flow-tvnz" href={tvnz} target="_blank" rel="noreferrer">📺</a>}
+        {tvnz && isKnownTeam(fixture.home) && isKnownTeam(fixture.away) && isNewZealand() && <a className="bracket-flow-tvnz" href={tvnz} target="_blank" rel="noreferrer">📺</a>}
         <a className="bracket-cal-btn" href={gcalUrl(fixture)} target="_blank" rel="noreferrer" title="Add to Google Calendar">
           <CalIcon />
         </a>

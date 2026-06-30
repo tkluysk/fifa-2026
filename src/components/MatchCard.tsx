@@ -3,7 +3,7 @@ import { gcalUrl, tvnzUrl } from "../matches";
 import { flag, countryColor } from "../countryInfo";
 import type { LiveScore, GoalEvent, MatchCard as CardEvent, SubEvent } from "../hooks/useLiveData";
 import { tempForCity } from "../cityTemps";
-import { formatLocalDate, userCity } from "../dateUtils";
+import { formatLocalDate, userCity, isNewZealand } from "../dateUtils";
 
 function CalIcon() {
   return (
@@ -51,13 +51,10 @@ export function MatchCard({ match, tracked, score, onInfo, isNext }: Props) {
 
   const homeColor = countryColor(match.home);
   const awayColor = countryColor(match.away);
-  // Past matches use a dimmed version of the colour so they stay faded
-  const opacity = status === "past" ? 0.5 : 1;
   const cardStyle = {
     background: `linear-gradient(105deg, ${homeColor.bg} 0%, ${homeColor.bg} 45%, var(--surface) 50%, ${awayColor.bg} 55%, ${awayColor.bg} 100%)`,
     borderLeft: `3px solid ${homeColor.accent}`,
     borderRight: `3px solid ${awayColor.accent}`,
-    opacity,
   };
 
   return (
@@ -74,7 +71,7 @@ export function MatchCard({ match, tracked, score, onInfo, isNext }: Props) {
         {status === "past" && <span className="past-badge">FT</span>}
         <span className="match-date--next">{formatLocalDate(match.startUtc)}</span>
         <span className="match-tz-label">{userCity()} time</span>
-        {stream && (
+        {stream && isNewZealand() && (
           <a className="btn-tvnz-inline" href={stream} target="_blank" rel="noreferrer">📺 TVNZ+</a>
         )}
         <a className="btn-cal-side" href={cal} target="_blank" rel="noreferrer" title="Add to Google Calendar">
@@ -117,7 +114,7 @@ export function MatchCard({ match, tracked, score, onInfo, isNext }: Props) {
         <MatchTimeline score={score} isLive={status === "live"} />
       )}
 
-      <p className="match-venue">📍 {match.venue}{tempForCity(match.venue) ? ` · 🌡 ${tempForCity(match.venue)}` : ""}</p>
+      <p className="match-venue">📍 <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(match.venue)}`} target="_blank" rel="noreferrer" className="venue-link">{match.venue}</a>{tempForCity(match.venue) ? ` · 🌡 ${tempForCity(match.venue)}` : ""}</p>
     </li>
   );
 }
@@ -166,7 +163,7 @@ function EventCell({ ev }: { ev: TimelineEvent }) {
   if (ev.kind === "goal") {
     const g = ev.goal!;
     const label = g.ownGoal ? "OG" : g.penalty ? "P" : "";
-    const badge = label ? <span className="match-goal-type">{label}</span> : null;
+    const badge = label ? <span className="match-goal-type" title={g.ownGoal ? "Own goal" : "Penalty"}>{label}</span> : null;
     return (
       <span className="match-goal-chip">
         {ev.side === "home"
@@ -178,8 +175,9 @@ function EventCell({ ev }: { ev: TimelineEvent }) {
   if (ev.kind === "card") {
     const c = ev.card!;
     const icon = c.type === "yellow" ? "🟨" : c.type === "red" ? "🟥" : "🟨🟥";
+    const cardTitle = c.type === "yellow" ? "Yellow card" : c.type === "red" ? "Red card" : "Yellow-red card";
     return (
-      <span className={`match-card-chip match-card-chip--${c.type}`}>
+      <span className={`match-card-chip match-card-chip--${c.type}`} title={cardTitle}>
         {ev.side === "home"
           ? <>{icon} <span className="match-card-player">{c.player}</span> <span className="match-card-min">{c.minute}</span></>
           : <><span className="match-card-min">{c.minute}</span> <span className="match-card-player">{c.player}</span> {icon}</>}
@@ -189,7 +187,7 @@ function EventCell({ ev }: { ev: TimelineEvent }) {
   if (ev.kind === "sub") {
     const s = ev.sub!;
     return (
-      <span className="match-sub-chip">
+      <span className="match-sub-chip" title={`${s.playerOn} on · ${s.playerOff} off`}>
         {ev.side === "home"
           ? <>🔄 <span className="match-sub-on">{s.playerOn}</span> <span className="match-sub-off">↓{s.playerOff}</span> <span className="match-card-min">{s.minute}</span></>
           : <><span className="match-card-min">{s.minute}</span> <span className="match-sub-off">{s.playerOff}↓</span> <span className="match-sub-on">{s.playerOn}</span> 🔄</>}

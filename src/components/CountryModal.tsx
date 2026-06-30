@@ -314,6 +314,7 @@ export function CountryModal({ country, scores, allMatches, knockoutFixtures, on
             <p className="analysis-error">⚠️ {analysisError}</p>
           ) : analysis ? (
             <div className="analysis-content">
+              <p className="ai-disclaimer">AI-generated · may contain inaccuracies</p>
               <p className="analysis-summary">{analysis.summary}</p>
 
               <h4>Highlights</h4>
@@ -330,7 +331,6 @@ export function CountryModal({ country, scores, allMatches, knockoutFixtures, on
 
               <h4>Prognosis</h4>
               <p className="analysis-prognosis">{analysis.prognosis}</p>
-              <p className="ai-disclaimer">AI-generated — may contain inaccuracies. Based on data available at time of generation.</p>
             </div>
           ) : null}
         </section>

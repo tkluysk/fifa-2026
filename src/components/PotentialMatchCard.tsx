@@ -3,7 +3,7 @@ import { upstreamTeams } from "../hooks/useLiveData";
 import { countryColor, flag } from "../countryInfo";
 import { tempForCity } from "../cityTemps";
 import { MatchTimeline } from "./MatchCard";
-import { formatLocalDate, userCity } from "../dateUtils";
+import { formatLocalDate, userCity, isNewZealand } from "../dateUtils";
 
 function CalIcon() {
   return (
@@ -102,7 +102,7 @@ export function PotentialMatchCard({ fixture, country, groupStandingsMap, knocko
         {fixture.score?.status === "finished" && <span className="past-badge">FT</span>}
         <span className="match-date--next">{localDate}</span>
         <span className="match-tz-label">{city} time</span>
-        {tvnzLink && <a href={tvnzLink} target="_blank" rel="noreferrer" className="btn-tvnz-inline">📺 TVNZ+</a>}
+        {tvnzLink && opponentKnown && isNewZealand() && <a href={tvnzLink} target="_blank" rel="noreferrer" className="btn-tvnz-inline">📺 TVNZ+</a>}
         <a className="btn-cal-side" href={gcalUrl(fixture, country)} target="_blank" rel="noreferrer" title="Add to Google Calendar">
           <CalIcon />
         </a>
@@ -164,7 +164,7 @@ export function PotentialMatchCard({ fixture, country, groupStandingsMap, knocko
 
       {/* Venue row */}
       {fixture.venue && (
-        <p className="match-venue">📍 {fixture.venue}{tempForCity(fixture.venue) ? ` · 🌡 ${tempForCity(fixture.venue)}` : ""}</p>
+        <p className="match-venue">📍 <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fixture.venue)}`} target="_blank" rel="noreferrer" className="venue-link">{fixture.venue}</a>{tempForCity(fixture.venue) ? ` · 🌡 ${tempForCity(fixture.venue)}` : ""}</p>
       )}
     </li>
   );

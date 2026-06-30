@@ -220,6 +220,24 @@ const KNOCKOUT_RANGE = "20260625-20260720"; // starts June 25 to catch early R32
 const POLL_INTERVAL_LIVE_MS = 60 * 1000;
 const POLL_INTERVAL_IDLE_MS = 5 * 60 * 1000;
 
+// Cache subs for finished games — they never change, no need to re-fetch each poll
+const finishedSubsCache = new Map<string, { homeSubs: SubEvent[]; awaySubs: SubEvent[] }>();
+
+// Run promises with at most `limit` in-flight at once — avoids ESPN rate-limiting
+// when fetching subs for 70+ finished games on first load.
+async function pMap<T>(ids: string[], fn: (id: string) => Promise<T>, limit = 5): Promise<T[]> {
+  const results: T[] = new Array(ids.length);
+  let next = 0;
+  async function worker() {
+    while (next < ids.length) {
+      const i = next++;
+      results[i] = await fn(ids[i]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, ids.length) }, worker));
+  return results;
+}
+
 async function fetchSubsForEvent(eventId: string): Promise<{ homeSubs: SubEvent[]; awaySubs: SubEvent[] }> {
   try {
     const r = await fetch(`${ESPN_SUMMARY}?event=${eventId}`);
@@ -285,9 +303,12 @@ function parseGroupMatches(events: unknown[]): { matches: Match[]; scores: Recor
 
     const id = e.id as string;
     const venueObj = comp.venue as Record<string, unknown> | undefined;
+    const venueAddr = (venueObj?.address as Record<string, unknown>) ?? {};
     const stadiumName = (venueObj?.fullName as string) || "";
-    const venueCity = ((venueObj?.address as Record<string, unknown>)?.city as string) || "";
-    const venue = stadiumName && venueCity ? `${stadiumName}, ${venueCity}` : stadiumName || venueCity;
+    const venueCity = (venueAddr.city as string) || "";
+    const venueCountry = (venueAddr.country as string) || "";
+    const venueParts = [stadiumName, venueCity, venueCountry].filter(Boolean);
+    const venue = venueParts.join(", ");
     matches.push({
       id, home, away,
       group: parseGroup(altGameNote),
@@ -407,9 +428,11 @@ function parseKnockoutFixtures(events: unknown[]): KnockoutFixture[] {
     if (!home || !away) continue;
 
     const koVenueObj = comp.venue as Record<string, unknown> | undefined;
+    const koVenueAddr = (koVenueObj?.address as Record<string, unknown>) ?? {};
     const koStadiumName = (koVenueObj?.fullName as string) || "";
-    const koCity = ((koVenueObj?.address as Record<string, unknown>)?.city as string) || "";
-    const koVenue = koStadiumName && koCity ? `${koStadiumName}, ${koCity}` : koStadiumName || koCity;
+    const koCity = (koVenueAddr.city as string) || "";
+    const koCountry = (koVenueAddr.country as string) || "";
+    const koVenue = [koStadiumName, koCity, koCountry].filter(Boolean).join(", ");
     const fixture: KnockoutFixture = {
       id: e.id as string,
       stage,
@@ -658,29 +681,51 @@ export function useLiveData(): LiveData {
         const knockouts = parseKnockoutFixtures(knockoutJson.events ?? []);
         fetchedScores = parsed;
 
-        // Fetch subs from summary for live group games
+        // Fetch subs from summary for live + finished group games
+        // (scoreboard comp.details has cards/goals but not subs for finished games)
         const liveIds = Object.entries(parsed)
           .filter(([, s]) => s.status === "in_progress")
           .map(([id]) => id);
-        if (liveIds.length > 0) {
-          const subsResults = await Promise.all(liveIds.map(id => fetchSubsForEvent(id)));
-          for (let i = 0; i < liveIds.length; i++) {
-            const id = liveIds[i];
+        const finishedUncachedIds = Object.entries(parsed)
+          .filter(([id, s]) => s.status === "finished" && !finishedSubsCache.has(id))
+          .map(([id]) => id);
+        const groupSubIds = [...liveIds, ...finishedUncachedIds];
+        if (groupSubIds.length > 0) {
+          const subsResults = await pMap(groupSubIds, fetchSubsForEvent);
+          for (let i = 0; i < groupSubIds.length; i++) {
+            const id = groupSubIds[i];
             fetchedScores[id] = { ...fetchedScores[id], ...subsResults[i] };
+            if (parsed[id]?.status === "finished") finishedSubsCache.set(id, subsResults[i]);
           }
         }
+        // Apply cached subs for already-cached finished games
+        for (const [id, subs] of finishedSubsCache) {
+          if (fetchedScores[id]) fetchedScores[id] = { ...fetchedScores[id], ...subs };
+        }
 
-        // Fetch subs from summary for live knockout games
+        // Fetch subs from summary for live + finished knockout games
         const liveKoIds = knockouts
           .filter(f => f.score?.status === "in_progress")
           .map(f => f.id);
-        if (liveKoIds.length > 0) {
-          const koSubsResults = await Promise.all(liveKoIds.map(id => fetchSubsForEvent(id)));
-          for (let i = 0; i < liveKoIds.length; i++) {
-            const fixture = knockouts.find(f => f.id === liveKoIds[i]);
+        const finishedUncachedKoIds = knockouts
+          .filter(f => f.score?.status === "finished" && !finishedSubsCache.has(f.id))
+          .map(f => f.id);
+        const koSubIds = [...liveKoIds, ...finishedUncachedKoIds];
+        if (koSubIds.length > 0) {
+          const koSubsResults = await pMap(koSubIds, fetchSubsForEvent);
+          for (let i = 0; i < koSubIds.length; i++) {
+            const id = koSubIds[i];
+            const fixture = knockouts.find(f => f.id === id);
             if (fixture?.score) {
               fixture.score = { ...fixture.score, ...koSubsResults[i] };
+              if (fixture.score.status === "finished") finishedSubsCache.set(id, koSubsResults[i]);
             }
+          }
+        }
+        // Apply cached subs for already-cached finished KO games
+        for (const fixture of knockouts) {
+          if (fixture.score?.status === "finished" && finishedSubsCache.has(fixture.id)) {
+            fixture.score = { ...fixture.score, ...finishedSubsCache.get(fixture.id)! };
           }
         }
 

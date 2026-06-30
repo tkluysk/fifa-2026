@@ -3,6 +3,7 @@ import { gcalUrl, tvnzUrl } from "../matches";
 import { flag, countryColor } from "../countryInfo";
 import type { LiveScore } from "../hooks/useLiveData";
 import type { KnockoutFixture } from "../hooks/useLiveData";
+import { isNewZealand } from "../dateUtils";
 
 interface Props {
   matches: Match[];
@@ -12,25 +13,44 @@ interface Props {
   onInfo: (country: string) => void;
 }
 
-// Viewer's local timezone
 const LOCAL_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-function localDate(iso: string): Date {
-  return new Date(iso);
-}
-
 function localDayKey(d: Date): string {
-  // "2026-06-15" in local tz
-  return d.toLocaleDateString("sv-SE", { timeZone: LOCAL_TZ }); // sv-SE gives YYYY-MM-DD
+  return d.toLocaleDateString("sv-SE", { timeZone: LOCAL_TZ }); // YYYY-MM-DD
 }
 
-function localTime(iso: string): string {
+function localTimeKey(iso: string): string {
+  // "HH:MM" in local tz — used as row key
+  return new Intl.DateTimeFormat(undefined, {
+    timeZone: LOCAL_TZ,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(iso));
+}
+
+function localTimeLabel(iso: string): string {
   return new Intl.DateTimeFormat(undefined, {
     timeZone: LOCAL_TZ,
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
   }).format(new Date(iso));
+}
+
+function isoWeekMonday(d: Date): Date {
+  const day = d.getDay(); // 0=Sun
+  const diff = (day === 0 ? -6 : 1 - day);
+  const mon = new Date(d);
+  mon.setDate(d.getDate() + diff);
+  mon.setHours(0, 0, 0, 0);
+  return mon;
+}
+
+function weekKey(iso: string): string {
+  const d = new Date(iso);
+  const mon = isoWeekMonday(d);
+  return localDayKey(mon);
 }
 
 function matchStatus(iso: string, live?: LiveScore): "upcoming" | "live" | "past" {
@@ -48,50 +68,41 @@ function isTracked(team: string, tracked: string[]): boolean {
   return tracked.map(c => c.toLowerCase()).some(c => c === t || (t.startsWith("ir ") && c === t.slice(3)));
 }
 
-// Build calendar grid for a given year/month
-function calendarGrid(year: number, month: number): (number | null)[] {
-  const firstDow = new Date(year, month, 1).getDay(); // 0=Sun
-  const offset = (firstDow + 6) % 7; // shift to Mon=0
-  const days = new Date(year, month + 1, 0).getDate();
-  return [
-    ...Array(offset).fill(null),
-    ...Array.from({ length: days }, (_, i) => i + 1),
-  ];
+function isKnownTeam(name: string): boolean {
+  return !/(group|round of|winner|place|runner|loser|quarterfinal|semifinal)/i.test(name);
 }
 
 interface CalEntry {
   id: string;
-  time: string;
+  startUtc: string;
+  timeKey: string;   // "HH:MM" local
+  dayKey: string;    // "YYYY-MM-DD" local
+  weekKey: string;   // "YYYY-MM-DD" of week's Monday
   homeTeam: string;
   awayTeam: string;
   isPotential: boolean;
-  condition?: string;
   homeAccent: string;
   awayAccent: string;
   status: "upcoming" | "live" | "past";
-  href: string; // gcal link
+  href: string;
   tvnz?: string;
   score?: { home: number; away: number };
 }
 
 export function CalendarView({ matches, knockoutFixtures, scores, tracked, onInfo }: Props) {
-  // Build a map: "YYYY-MM-DD" → CalEntry[]
-  const dayMap: Record<string, CalEntry[]> = {};
+  const entries: CalEntry[] = [];
+  const nz = isNewZealand();
 
-  function add(key: string, entry: CalEntry) {
-    if (!dayMap[key]) dayMap[key] = [];
-    dayMap[key].push(entry);
-  }
-
-  // Confirmed matches
   for (const m of matches) {
-    const d = localDate(m.startUtc);
-    const key = localDayKey(d);
     const live = scores[m.id];
     const status = matchStatus(m.startUtc, live);
-    add(key, {
+    const tvnzLink = nz ? (tvnzUrl(m) ?? undefined) : undefined;
+    entries.push({
       id: m.id,
-      time: localTime(m.startUtc),
+      startUtc: m.startUtc,
+      timeKey: localTimeKey(m.startUtc),
+      dayKey: localDayKey(new Date(m.startUtc)),
+      weekKey: weekKey(m.startUtc),
       homeTeam: m.home,
       awayTeam: m.away,
       isPotential: false,
@@ -99,27 +110,24 @@ export function CalendarView({ matches, knockoutFixtures, scores, tracked, onInf
       awayAccent: countryColor(m.away).accent,
       status,
       href: gcalUrl(m),
-      tvnz: tvnzUrl(m) ?? undefined,
+      tvnz: tvnzLink,
       score: live && live.status !== "scheduled" ? { home: live.home, away: live.away } : undefined,
     });
   }
 
-  // Knockout fixtures — show for tracked teams
   for (const f of knockoutFixtures) {
-    // Only include if a tracked team is directly named (not just a slot placeholder)
     const trackedInFixture = tracked.filter(c => {
       const cl = c.toLowerCase();
       return f.home.toLowerCase() === cl || f.away.toLowerCase() === cl;
     });
     if (trackedInFixture.length === 0) continue;
 
-    const d = localDate(f.startUtc);
-    const key = localDayKey(d);
-    const live = f.score;
-    const status = live?.status === "finished" ? "past" : live?.status === "in_progress" ? "live" : "upcoming";
-
     const country = trackedInFixture[0];
     const opponent = f.home.toLowerCase() === country.toLowerCase() ? f.away : f.home;
+    const live = f.score;
+    const status = live?.status === "finished" ? "past" : live?.status === "in_progress" ? "live" : "upcoming";
+    const tvnzLink = nz && isKnownTeam(f.home) && isKnownTeam(f.away) ? (f.tvnzPath ? `https://www.tvnz.co.nz${f.tvnzPath}` : undefined) : undefined;
+
     const params = new URLSearchParams({
       action: "TEMPLATE",
       text: `⚽ [Potential] ${f.stage} — FIFA World Cup 2026`,
@@ -130,58 +138,111 @@ export function CalendarView({ matches, knockoutFixtures, scores, tracked, onInf
       location: f.venue,
       details: `${country} vs ${opponent}`,
     });
-    add(key, {
+
+    entries.push({
       id: `${f.id}-${country}`,
-      time: localTime(f.startUtc),
+      startUtc: f.startUtc,
+      timeKey: localTimeKey(f.startUtc),
+      dayKey: localDayKey(new Date(f.startUtc)),
+      weekKey: weekKey(f.startUtc),
       homeTeam: country,
       awayTeam: opponent,
       isPotential: true,
       homeAccent: countryColor(country).accent,
-      awayAccent: "#aaa",
+      awayAccent: isKnownTeam(opponent) ? countryColor(opponent).accent : "#aaa",
       status,
       href: `https://calendar.google.com/calendar/render?${params.toString()}`,
-      score: live ? { home: f.home.toLowerCase() === country.toLowerCase() ? live.home : live.away, away: f.home.toLowerCase() === country.toLowerCase() ? live.away : live.home } : undefined,
+      tvnz: tvnzLink,
+      score: live ? {
+        home: f.home.toLowerCase() === country.toLowerCase() ? live.home : live.away,
+        away: f.home.toLowerCase() === country.toLowerCase() ? live.away : live.home,
+      } : undefined,
     });
   }
 
-  // Months to render: June + July 2026
-  const months: { year: number; month: number; label: string }[] = [
-    { year: 2026, month: 5, label: "June 2026" },
-    { year: 2026, month: 6, label: "July 2026" },
-  ];
+  // Group entries by week, then collect unique time slots and day keys per week
+  const weekOrder: string[] = [];
+  const weekEntries: Record<string, CalEntry[]> = {};
+  for (const e of entries) {
+    if (!weekEntries[e.weekKey]) {
+      weekEntries[e.weekKey] = [];
+      weekOrder.push(e.weekKey);
+    }
+    weekEntries[e.weekKey].push(e);
+  }
+  weekOrder.sort();
 
   const tzLabel = LOCAL_TZ.replace(/_/g, " ");
+  const todayKey = localDayKey(new Date());
 
   return (
     <div className="cal-wrap">
       <p className="cal-tz">Times shown in your local timezone: <strong>{tzLabel}</strong></p>
-      {months.map(({ year, month, label }) => {
-        const grid = calendarGrid(year, month);
+      {weekOrder.map(wk => {
+        const wkEntries = weekEntries[wk];
+
+        // Columns: only days that have at least one entry; plus fill Mon–Sun of that week
+        const monDate = new Date(wk + "T00:00:00");
+        const weekDays: { key: string; label: string; date: Date }[] = [];
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(monDate);
+          d.setDate(monDate.getDate() + i);
+          const key = localDayKey(d);
+          // Only include days that have entries OR are in the tournament window
+          const hasEntries = wkEntries.some(e => e.dayKey === key);
+          if (hasEntries) {
+            weekDays.push({
+              key,
+              label: d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }),
+              date: d,
+            });
+          }
+        }
+
+        // Rows: unique time slots sorted
+        const timeSlots = [...new Set(wkEntries.map(e => e.timeKey))].sort();
+
+        // Cell lookup: timeKey + dayKey → entries
+        const cellMap: Record<string, CalEntry[]> = {};
+        for (const e of wkEntries) {
+          const k = `${e.timeKey}|${e.dayKey}`;
+          if (!cellMap[k]) cellMap[k] = [];
+          cellMap[k].push(e);
+        }
+
         return (
-          <div key={label} className="cal-month">
-            <h3 className="cal-month-title">{label}</h3>
-            <div className="cal-grid">
-              {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d => (
-                <div key={d} className="cal-dow">{d}</div>
+          <div key={wk} className="cal-week-section">
+            <div
+              className="cal-time-grid"
+              style={{ gridTemplateColumns: `3.5rem repeat(${weekDays.length}, 1fr)` }}
+            >
+              {/* Header row */}
+              <div className="cal-grid-corner" />
+              {weekDays.map(day => (
+                <div
+                  key={day.key}
+                  className={`cal-grid-day-header${day.key === todayKey ? " cal-grid-day-header--today" : ""}`}
+                >
+                  {day.label}
+                </div>
               ))}
-              {grid.map((day, i) => {
-                const key = day
-                  ? `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
-                  : null;
-                const entries = key ? (dayMap[key] ?? []) : [];
-                const isToday = key === localDayKey(new Date());
-                return (
-                  <div
-                    key={i}
-                    className={`cal-day${!day ? " cal-day--empty" : ""}${isToday ? " cal-day--today" : ""}${entries.length ? " cal-day--has-matches" : ""}`}
-                  >
-                    {day && <span className="cal-day-num">{day}</span>}
-                    {entries.map((e) => (
-                      <CalEntry key={e.id} entry={e} tracked={tracked} onInfo={onInfo} />
-                    ))}
-                  </div>
-                );
-              })}
+
+              {/* Time slot rows */}
+              {timeSlots.map(slot => (
+                <>
+                  <div key={`slot-${slot}`} className="cal-grid-time">{localTimeLabel(wkEntries.find(e => e.timeKey === slot)!.startUtc)}</div>
+                  {weekDays.map(day => {
+                    const cell = cellMap[`${slot}|${day.key}`] ?? [];
+                    return (
+                      <div key={`${slot}|${day.key}`} className={`cal-grid-cell${cell.length ? " cal-grid-cell--has" : ""}`}>
+                        {cell.map(e => (
+                          <CalEntryCard key={e.id} entry={e} tracked={tracked} onInfo={onInfo} />
+                        ))}
+                      </div>
+                    );
+                  })}
+                </>
+              ))}
             </div>
           </div>
         );
@@ -190,20 +251,16 @@ export function CalendarView({ matches, knockoutFixtures, scores, tracked, onInf
   );
 }
 
-function CalEntry({ entry: e, tracked, onInfo }: { entry: CalEntry; tracked: string[]; onInfo: (c: string) => void }) {
+function CalEntryCard({ entry: e, tracked, onInfo }: { entry: CalEntry; tracked: string[]; onInfo: (c: string) => void }) {
   const homeTracked = isTracked(e.homeTeam, tracked);
   const awayTracked = isTracked(e.awayTeam, tracked);
 
   return (
-    <div className={`cal-entry${e.isPotential ? " cal-entry--potential" : ""}${e.status === "live" ? " cal-entry--live" : ""}${e.status === "past" ? " cal-entry--past" : ""}`}
-      style={{ borderLeftColor: e.homeAccent }}>
-
-      <div className="cal-entry-time">{e.time}{e.status === "live" && <span className="cal-live-dot" />}</div>
-
-      {e.isPotential && e.condition && (
-        <div className="cal-entry-condition">{e.condition}</div>
-      )}
-
+    <div
+      className={`cal-entry${e.isPotential ? " cal-entry--potential" : ""}${e.status === "live" ? " cal-entry--live" : ""}${e.status === "past" ? " cal-entry--past" : ""}`}
+      style={{ borderLeftColor: e.homeAccent }}
+    >
+      {e.status === "live" && <span className="cal-live-dot" />}
       <div className="cal-entry-teams">
         <span
           className={`cal-team${homeTracked ? " cal-team--tracked" : ""}`}
@@ -223,7 +280,6 @@ function CalEntry({ entry: e, tracked, onInfo }: { entry: CalEntry; tracked: str
           {flag(e.awayTeam)} {e.awayTeam}
         </span>
       </div>
-
       <div className="cal-entry-actions">
         {e.tvnz && (
           <a className="cal-btn cal-btn--tvnz" href={e.tvnz} target="_blank" rel="noreferrer">📺</a>

@@ -1039,6 +1039,13 @@ details[open] .ko-details-summary::before { content: "▼"; }
   color: var(--text-muted);
   margin-top: 6px;
 }
+.venue-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+  text-underline-offset: 2px;
+}
+.venue-link:hover { text-decoration-color: currentColor; }
 
 /* TVNZ link lives inline in the meta row */
 .btn-tvnz-inline {
@@ -1296,59 +1303,53 @@ details[open] .ko-details-summary::before { content: "▼"; }
 }
 
 /* ── Calendar ─────────────────────────────────────────────────────────────── */
-.cal-wrap { display: flex; flex-direction: column; gap: 28px; padding: 1rem; }
+.cal-wrap { display: flex; flex-direction: column; gap: 32px; padding: 1rem; }
 .cal-tz {
   font-size: .78rem;
   color: var(--text-muted);
   text-align: center;
   margin-bottom: -10px;
 }
-.cal-month { }
-.cal-month-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--green);
-  margin-bottom: 10px;
-}
-.cal-grid {
+
+/* ── Week time-grid ──────────────────────────────────────────────────────── */
+.cal-week-section { }
+
+.cal-time-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
+  gap: 4px 6px;
+  align-items: stretch;
 }
-.cal-dow {
-  font-size: .68rem;
+
+.cal-grid-corner { } /* top-left empty cell */
+
+.cal-grid-day-header {
+  font-size: .72rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .05em;
   color: var(--text-muted);
   text-align: center;
-  padding: 4px 0;
+  padding: 4px 2px;
+  border-bottom: 1px solid var(--border);
 }
-.cal-day {
-  min-height: 64px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 6px;
+.cal-grid-day-header--today { color: var(--gold); }
+
+.cal-grid-time {
+  font-size: .65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-align: right;
+  padding: 6px 4px 0 0;
+  white-space: nowrap;
+  border-top: 1px solid var(--border);
+}
+
+.cal-grid-cell {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  position: relative;
+  gap: 4px;
+  padding: 4px 0;
+  border-top: 1px solid var(--border);
+  min-height: 36px;
 }
-.cal-day--empty {
-  background: transparent;
-  border-color: transparent;
-}
-.cal-day--today { border-color: var(--gold); border-width: 2px; }
-.cal-day--has-matches { background: var(--surface-raised); }
-.cal-day-num {
-  font-size: .7rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  line-height: 1;
-  margin-bottom: 2px;
-}
-.cal-day--today .cal-day-num { color: var(--gold); font-weight: 800; }
 
 .cal-entry {
   background: var(--pitch-mid);
@@ -1372,14 +1373,6 @@ details[open] .ko-details-summary::before { content: "▼"; }
 }
 .cal-entry--past { opacity: .5; }
 
-.cal-entry-time {
-  font-size: .65rem;
-  color: var(--text-muted);
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
 .cal-live-dot {
   width: 6px;
   height: 6px;
