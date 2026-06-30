@@ -9,9 +9,10 @@ interface Props {
   selected: string[];
   countryGroups: Record<string, string>;
   groupStandingsMap: GroupStandingsMap;
+  loading: boolean;
 }
 
-export function GoogleCalendarButton({ matches, knockoutFixtures, selected, countryGroups, groupStandingsMap }: Props) {
+export function GoogleCalendarButton({ matches, knockoutFixtures, selected, countryGroups, groupStandingsMap, loading }: Props) {
   const { hasClientId, status, error, lastSync, sync } = useGoogleCalendar();
 
   if (!hasClientId) return null;
@@ -41,8 +42,8 @@ export function GoogleCalendarButton({ matches, knockoutFixtures, selected, coun
       <button
         className={`gcal-btn gcal-btn--${status}`}
         onClick={handleSync}
-        disabled={isBusy || selected.length === 0}
-        title={selected.length === 0 ? "Select countries first" : "Sync to Google Calendar"}
+        disabled={isBusy || loading || selected.length === 0}
+        title={loading ? "Waiting for match data to load…" : selected.length === 0 ? "Select countries first" : "Sync to Google Calendar"}
       >
         <span className="gcal-icon">
           {status === "syncing" ? <span className="spinner" /> : "📅"}

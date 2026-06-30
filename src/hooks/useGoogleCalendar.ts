@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { syncToGoogleCalendar, type SyncOptions } from "../gcalSync";
 
 const LS_TOKEN   = "gcal-access-token";
@@ -52,6 +52,7 @@ export function useGoogleCalendar() {
   );
   const [error, setError] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<Date | null>(null);
+  const syncInFlight = useRef(false);
 
   // Re-check token validity on mount
   useEffect(() => {
@@ -76,7 +77,8 @@ export function useGoogleCalendar() {
             return;
           }
           saveToken(resp.access_token, resp.expires_in ?? 3600);
-          setStatus("connected");
+          // Do NOT reset status here — caller owns status; resetting to "connected"
+          // would briefly re-enable the button mid-sync and allow a double-click race.
           resolve(resp.access_token);
         },
         error_callback: (err) => {
@@ -89,6 +91,8 @@ export function useGoogleCalendar() {
   }, [clientId]);
 
   const sync = useCallback(async (opts: Omit<SyncOptions, "token">) => {
+    if (syncInFlight.current) return;
+    syncInFlight.current = true;
     setError(null);
     setStatus("syncing");
     try {
@@ -113,6 +117,8 @@ export function useGoogleCalendar() {
         setStatus("error");
         setError(msg);
       }
+    } finally {
+      syncInFlight.current = false;
     }
   }, [requestToken]);
 

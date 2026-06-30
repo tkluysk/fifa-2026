@@ -200,7 +200,7 @@ export function CalendarView({
       >
         {/* ── Row 1: week range labels (sticky top: 0) ── */}
         {/* corner for row 1 */}
-        <div style={{ gridColumn: 1, gridRow: 1, position: "sticky", top: 0, left: 0, zIndex: 5, background: "var(--pitch)" }} />
+        <div style={{ gridColumn: 1, gridRow: 1, position: "sticky", top: 0, left: 0, zIndex: 5, background: "var(--pitch)", minWidth: 40 }} />
         {weekOrder.map(wk => (
           <div
             key={wk}
@@ -213,7 +213,7 @@ export function CalendarView({
 
         {/* ── Row 2: day headers (sticky top: WEEK_ROW_H) ── */}
         {/* corner for row 2 */}
-        <div style={{ gridColumn: 1, gridRow: 2, position: "sticky", top: WEEK_ROW_H, left: 0, zIndex: 5, background: "var(--pitch)", borderBottom: "1px solid var(--border)" }} />
+        <div style={{ gridColumn: 1, gridRow: 2, position: "sticky", top: WEEK_ROW_H, left: 0, zIndex: 5, background: "var(--pitch)", borderBottom: "1px solid var(--border)", minWidth: 40 }} />
         {allDays.map(dayKey => {
           const rel = relativeDayLabel(dayKey);
           const label = new Date(dayKey + "T12:00:00")
