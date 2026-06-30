@@ -100,7 +100,7 @@ export function PotentialMatchCard({ fixture, country, groupStandingsMap, knocko
         <span className="potential-badge">{stageCode(fixture.stage)}</span>
         <span className="potential-label">{fixture.stage}</span>
         {fixture.score?.status === "finished" && <span className="past-badge">FT</span>}
-        <span className={isNext && !isLive ? "match-date--next" : ""}>{localDate}</span>
+        <span className="match-date--next">{localDate}</span>
         <span className="match-tz-label">{city} time</span>
         {tvnzLink && <a href={tvnzLink} target="_blank" rel="noreferrer" className="btn-tvnz-inline">📺 TVNZ+</a>}
         <a className="btn-cal-side" href={gcalUrl(fixture, country)} target="_blank" rel="noreferrer" title="Add to Google Calendar">

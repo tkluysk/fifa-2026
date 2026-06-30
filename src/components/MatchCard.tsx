@@ -72,7 +72,7 @@ export function MatchCard({ match, tracked, score, onInfo, isNext }: Props) {
       <div className="match-meta">
         <span className="group-badge">Group {match.group}</span>
         {status === "past" && <span className="past-badge">FT</span>}
-        <span className={isNext && status !== "live" ? "match-date--next" : ""}>{formatLocalDate(match.startUtc)}</span>
+        <span className="match-date--next">{formatLocalDate(match.startUtc)}</span>
         <span className="match-tz-label">{userCity()} time</span>
         {stream && (
           <a className="btn-tvnz-inline" href={stream} target="_blank" rel="noreferrer">📺 TVNZ+</a>
