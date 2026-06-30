@@ -112,7 +112,7 @@ export function resolveSlot(slot: string, gsMap: GroupStandingsMap): string[] {
 const ESPN_BASE      = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard";
 const ESPN_SUMMARY   = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary";
 const ESPN_STANDINGS = "https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings";
-const GROUP_RANGE    = "20260612-20260630";
+const GROUP_RANGE    = "20260611-20260630";
 const KNOCKOUT_RANGE = "20260625-20260720"; // starts June 25 to catch early R32 matches
 const POLL_INTERVAL_LIVE_MS = 60 * 1000;
 const POLL_INTERVAL_IDLE_MS = 5 * 60 * 1000;
@@ -502,10 +502,8 @@ export function useLiveData(): LiveData {
           }
         }
 
-        // Build group standings map + advanced/eliminated sets
+        // Build group standings map
         const gsMap: GroupStandingsMap = {};
-        const advanced = new Set<string>();
-        const eliminated = new Set<string>();
 
         for (const group of standingsJson.children ?? []) {
           const name: string = group.name ?? "";
@@ -521,22 +519,40 @@ export function useLiveData(): LiveData {
             for (const s of e.stats) sm[s.abbreviation] = s.value;
             return {
               team: normaliseTeamName(e.team.displayName),
-              adv: (sm["ADV"] ?? 0) === 1,
+              rank: sm["R"] ?? 999,
               gp: sm["GP"] ?? sm["gamesPlayed"] ?? 0,
             };
           });
 
-          gsMap[letter] = ranked.map(r => r.team);
+          // Sort by ESPN rank for gsMap (1st, 2nd, 3rd, 4th)
+          const sortedByRank = [...ranked].sort((a, b) => a.rank - b.rank);
+          gsMap[letter] = sortedByRank.map(r => r.team);
+        }
 
-          const allDone = ranked.every(r => r.gp >= 3);
-          ranked.forEach((r, idx) => {
-            if (r.adv) {
-              advanced.add(r.team);
-            } else if (allDone && idx === ranked.length - 1) {
-              // 4th place with all games played → definitely eliminated
-              eliminated.add(r.team);
-            }
-          });
+        // Use R32 fixture data as ground truth for advanced/eliminated.
+        // ESPN's ADV flag is unreliable for 3rd-place qualifiers.
+        const isTBDSlot = (s: string) => /(group|round of|winner|place|runner|loser|quarterfinal|semifinal|third)/i.test(s);
+        const advanced = new Set<string>();
+        for (const f of knockouts) {
+          if (f.stage !== "Round of 32") continue;
+          if (!isTBDSlot(f.home)) advanced.add(normaliseTeamName(f.home));
+          if (!isTBDSlot(f.away)) advanced.add(normaliseTeamName(f.away));
+        }
+
+        // Eliminated = group fully played (all 4 teams at GP>=3) + not confirmed in R32
+        const eliminated = new Set<string>();
+        for (const group of standingsJson.children ?? []) {
+          const entries: { team: { displayName: string }; stats: { abbreviation: string; value: number }[] }[] =
+            group.standings?.entries ?? [];
+          const teams = entries.map(e => ({
+            team: normaliseTeamName(e.team.displayName),
+            gp: entries[0] && (e.stats.find(s => s.abbreviation === "GP")?.value ?? 0),
+          }));
+          const groupDone = teams.every(t => (t.gp as number) >= 3);
+          if (!groupDone) continue;
+          for (const { team } of teams) {
+            if (!advanced.has(team)) eliminated.add(team);
+          }
         }
 
         setMatches(fetched);

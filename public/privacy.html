@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — FIFA 2026 Tracker</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 720px; margin: 40px auto; padding: 0 24px; color: #1a1a1a; line-height: 1.7; }
+    h1 { font-size: 1.8rem; margin-bottom: 4px; }
+    .date { color: #666; font-size: .9rem; margin-bottom: 32px; display: block; }
+    h2 { font-size: 1.1rem; margin-top: 32px; }
+    a { color: #166534; }
+  </style>
+</head>
+<body>
+  <h1>Privacy Policy</h1>
+  <span class="date">Last updated: June 30, 2026</span>
+
+  <p>FIFA 2026 Tracker ("the app") is a personal project that displays live World Cup match data and optionally syncs matches to your Google Calendar. This policy explains what data is collected and how it is used.</p>
+
+  <h2>Data we collect</h2>
+  <p>The app does not collect, store, or transmit any personal data to its own servers. All data stays in your browser.</p>
+  <ul>
+    <li><strong>Google OAuth token</strong> — if you connect Google Calendar, an OAuth access token is stored in your browser's <code>localStorage</code> solely to make Calendar API calls on your behalf. It is never sent to our servers.</li>
+    <li><strong>Preferences</strong> — your tracked countries, theme preference, and API keys are stored in <code>localStorage</code> and never leave your device.</li>
+  </ul>
+
+  <h2>Google Calendar access</h2>
+  <p>If you choose to sync matches, the app requests the <code>https://www.googleapis.com/auth/calendar.events</code> scope to create and delete events in a dedicated "FIFA World Cup 2026" calendar it creates on your behalf. The app only ever reads or modifies that specific calendar and will never access any other calendar data.</p>
+  <p>You can revoke access at any time via <a href="https://myaccount.google.com/permissions" target="_blank" rel="noreferrer">Google Account Permissions</a>.</p>
+
+  <h2>Third-party data</h2>
+  <p>Live match data is fetched directly from the ESPN public API in your browser. No personal data is included in those requests.</p>
+
+  <h2>Contact</h2>
+  <p>Questions? Email <a href="mailto:worldcup@mergence.io">worldcup@mergence.io</a>.</p>
+</body>
+</html>

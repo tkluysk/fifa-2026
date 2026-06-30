@@ -253,6 +253,11 @@ export default function App() {
         )}
       </main>
 
+      <footer className="site-footer">
+        <a href="/privacy.html" target="_blank" rel="noreferrer">Privacy Policy</a>
+        {" · "}
+        <a href="/terms.html" target="_blank" rel="noreferrer">Terms of Service</a>
+      </footer>
 
 {infoCountry && (
         <CountryModal
