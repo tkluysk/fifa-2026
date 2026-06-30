@@ -10,6 +10,7 @@ import type { GroupStandings } from "./useCountryData";
 import type { LiveScore } from "./useLiveData";
 import type { Match } from "../matches";
 import { normaliseTeamName } from "../matches";
+import { formatLocalTime } from "../dateUtils";
 
 export interface AnalysisHighlight {
   type: "good" | "bad" | "neutral";
@@ -98,12 +99,7 @@ async function fetchLiveContext(country: string): Promise<LiveContext> {
       matchLines.push(`  [${roundLabel}] ${home} ${homeScore}–${awayScore} ${away} [LIVE${min}]`);
     } else {
       const dt = new Date(event.date as string);
-      const localTime = new Intl.DateTimeFormat(undefined, {
-        weekday: "short", day: "numeric", month: "short",
-        hour: "numeric", minute: "2-digit", hour12: true,
-        timeZoneName: "short",
-      }).format(dt);
-      matchLines.push(`  [${roundLabel}] ${home} vs ${away} — scheduled ${localTime}`);
+      matchLines.push(`  [${roundLabel}] ${home} vs ${away} — scheduled ${formatLocalTime(dt.toISOString())}`);
     }
   }
 

@@ -83,11 +83,14 @@ export function PotentialMatchCard({ fixture, country, groupStandingsMap, knocko
   const theirScore = fixture.score ? (isHome ? fixture.score.away : fixture.score.home) : undefined;
 
   return (
-    <li className={`match-card potential${isNext ? " match-card--next" : ""}`} style={{
+    <li className="match-card potential" style={{
       background: `linear-gradient(105deg, ${homeColor.bg} 0%, ${homeColor.bg} 45%, var(--surface) 50%, ${awayColor.bg} 55%, ${awayColor.bg} 100%)`,
       borderLeft: `3px solid ${homeColor.accent}`,
       borderRight: `3px solid ${awayColor.accent}`,
     }}>
+      {/* Corner status badge */}
+      {isLive && <span className="card-corner-badge card-corner-badge--live">LIVE</span>}
+      {isNext && !isLive && <span className="card-corner-badge card-corner-badge--next">NEXT</span>}
       {/* Background flags */}
       <span className="team-flag team-flag--home" aria-hidden="true">{flag(country)}</span>
       {opponentKnown && <span className="team-flag team-flag--away" aria-hidden="true">{flag(opponentSlot)}</span>}
@@ -95,8 +98,6 @@ export function PotentialMatchCard({ fixture, country, groupStandingsMap, knocko
       <div className="match-meta">
         <span className="potential-badge">{stageCode(fixture.stage)}</span>
         <span className="potential-label">{fixture.stage}</span>
-        {isNext && !isLive && <span className="next-badge">NEXT</span>}
-        {isLive && <span className="live-badge">LIVE</span>}
         {fixture.score?.status === "finished" && <span className="past-badge">FT</span>}
         <span className={isNext && !isLive ? "match-date--next" : ""}>{nzt}</span>
         {tvnzLink && <a href={tvnzLink} target="_blank" rel="noreferrer" className="btn-tvnz-inline">📺 TVNZ+</a>}

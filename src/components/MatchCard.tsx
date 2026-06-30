@@ -61,15 +61,16 @@ export function MatchCard({ match, tracked, score, onInfo, isNext }: Props) {
   };
 
   return (
-    <li className={`match-card ${status}${isNext ? " match-card--next" : ""}`} style={cardStyle}>
+    <li className={`match-card ${status}`} style={cardStyle}>
+      {/* Corner status badge */}
+      {status === "live" && <span className="card-corner-badge card-corner-badge--live">LIVE</span>}
+      {isNext && status !== "live" && <span className="card-corner-badge card-corner-badge--next">NEXT</span>}
       {/* Background flags */}
       <span className="team-flag team-flag--home" aria-hidden="true">{flag(match.home)}</span>
       <span className="team-flag team-flag--away" aria-hidden="true">{flag(match.away)}</span>
       {/* Meta row */}
       <div className="match-meta">
         <span className="group-badge">Group {match.group}</span>
-        {isNext && <span className="next-badge">NEXT</span>}
-        {status === "live" && <span className="live-badge">LIVE</span>}
         {status === "past" && <span className="past-badge">FT</span>}
         <span className={isNext && status !== "live" ? "match-date--next" : ""}>{formatLocalTime(match.startUtc)}</span>
         {stream && (

@@ -756,8 +756,26 @@ details[open] .ko-details-summary::before { content: "▼"; }
   box-shadow: 0 0 0 3px rgba(239,68,68,.15), var(--shadow);
 }
 /* past opacity is set inline per-card; upcoming cards use full colour */
-.match-card--next {
-  box-shadow: 0 0 0 2px var(--gold), var(--shadow);
+.card-corner-badge {
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  border-radius: var(--radius) 0 var(--radius) 0;
+  padding: 3px 8px;
+  font-size: .65rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  line-height: 1;
+  z-index: 1;
+}
+.card-corner-badge--next {
+  background: var(--gold-dim);
+  color: var(--gold);
+  border: 1px solid var(--gold);
+}
+.card-corner-badge--live {
+  background: var(--red);
+  color: #fff;
 }
 
 .match-meta {
