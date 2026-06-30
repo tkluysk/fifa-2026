@@ -838,7 +838,6 @@ details[open] .ko-details-summary::before { content: "▼"; }
 
 .match-date--next {
   color: var(--text);
-  font-weight: 700;
   font-size: .85rem;
 }
 
