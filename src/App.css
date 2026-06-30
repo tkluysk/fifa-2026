@@ -789,6 +789,7 @@ details[open] .ko-details-summary::before { content: "▼"; }
 .card-corner-badge--live {
   background: var(--red);
   color: #fff;
+  animation: pulse 1.5s infinite;
 }
 
 .match-meta {
