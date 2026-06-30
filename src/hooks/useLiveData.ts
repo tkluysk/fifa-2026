@@ -417,6 +417,7 @@ function parseKnockoutFixtures(events: unknown[]): KnockoutFixture[] {
       venue: koVenue,
       home,
       away,
+      tvnzPath: tvnzPathForMatch(home, away),
     };
     if (isFinished || isLive) {
       const clock = ((comp.status as Record<string, unknown>)?.displayClock as string) ?? undefined;

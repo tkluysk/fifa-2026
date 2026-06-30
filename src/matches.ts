@@ -10,11 +10,9 @@ export interface Match {
 
 export const TVNZ_BASE = "https://www.tvnz.co.nz";
 
-// TVNZ paths keyed by "Home|Away" (normalised).
-// Everything else — times, venues, teams — comes from ESPN at runtime.
-// Static fallback paths — only for matches we've verified on TVNZ.
-// Everything else is discovered dynamically by scraping tvnz.co.nz/sport.
-const TVNZ_PATHS: Record<string, string> = {
+// Verified TVNZ paths for group games (URL includes round suffix).
+// Knockout games use auto-generated slugs below.
+const TVNZ_PATH_OVERRIDES: Record<string, string> = {
   "IR Iran|New Zealand":  "/liveevent/ir-iran-v-new-zealand-groupg",
   "Belgium|Egypt":        "/liveevent/belgium-v-egypt-groupg",
   "New Zealand|Egypt":    "/liveevent/new-zealand-v-egypt",
@@ -22,6 +20,10 @@ const TVNZ_PATHS: Record<string, string> = {
   "Egypt|IR Iran":        "/liveevent/egypt-v-ir-iran",
   "New Zealand|Belgium":  "/liveevent/new-zealand-v-belgium",
 };
+
+function toSlug(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+}
 
 // ESPN uses different names for some teams — map to our canonical names
 const ESPN_NAME_MAP: Record<string, string> = {
@@ -39,7 +41,12 @@ export function normaliseTeamName(name: string): string {
 }
 
 export function tvnzPathForMatch(home: string, away: string): string | null {
-  return TVNZ_PATHS[`${home}|${away}`] ?? null;
+  const override = TVNZ_PATH_OVERRIDES[`${home}|${away}`];
+  if (override) return override;
+  // TVNZ+ has NZ broadcast rights for all WC matches — generate likely URL from team slugs.
+  // Some pages may not exist yet until closer to kick-off.
+  if (!home || !away || home.startsWith("Round") || home.startsWith("Winner") || home.startsWith("Group")) return null;
+  return `/liveevent/${toSlug(home)}-v-${toSlug(away)}`;
 }
 
 export function tvnzUrl(match: Match): string | null {

@@ -138,7 +138,7 @@ function parseMinute(m: string): number {
   return isNaN(n) ? 999 : n;
 }
 
-function buildTimeline(score: LiveScore, isLive: boolean): TimelineEvent[] {
+function buildTimeline(score: LiveScore): TimelineEvent[] {
   const events: TimelineEvent[] = [];
 
   const addGoals = (goals: GoalEvent[] | undefined, side: "home" | "away") => {
@@ -147,19 +147,17 @@ function buildTimeline(score: LiveScore, isLive: boolean): TimelineEvent[] {
   addGoals(score.homeGoals, "home");
   addGoals(score.awayGoals, "away");
 
-  if (isLive) {
-    const addCards = (cards: CardEvent[] | undefined, side: "home" | "away") => {
-      (cards ?? []).forEach(c => events.push({ minute: c.minute, minuteNum: parseMinute(c.minute), kind: "card", side, card: c }));
-    };
-    addCards(score.homeCards, "home");
-    addCards(score.awayCards, "away");
+  const addCards = (cards: CardEvent[] | undefined, side: "home" | "away") => {
+    (cards ?? []).forEach(c => events.push({ minute: c.minute, minuteNum: parseMinute(c.minute), kind: "card", side, card: c }));
+  };
+  addCards(score.homeCards, "home");
+  addCards(score.awayCards, "away");
 
-    const addSubs = (subs: SubEvent[] | undefined, side: "home" | "away") => {
-      (subs ?? []).forEach(s => events.push({ minute: s.minute, minuteNum: parseMinute(s.minute), kind: "sub", side, sub: s }));
-    };
-    addSubs(score.homeSubs, "home");
-    addSubs(score.awaySubs, "away");
-  }
+  const addSubs = (subs: SubEvent[] | undefined, side: "home" | "away") => {
+    (subs ?? []).forEach(s => events.push({ minute: s.minute, minuteNum: parseMinute(s.minute), kind: "sub", side, sub: s }));
+  };
+  addSubs(score.homeSubs, "home");
+  addSubs(score.awaySubs, "away");
 
   return events.sort((a, b) => a.minuteNum - b.minuteNum || (a.side === "home" ? -1 : 1));
 }
@@ -202,7 +200,7 @@ function EventCell({ ev }: { ev: TimelineEvent }) {
 }
 
 export function MatchTimeline({ score, isLive }: { score: LiveScore; isLive: boolean }) {
-  const events = buildTimeline(score, isLive);
+  const events = buildTimeline(score);
   if (!events.length) return null;
 
   return (
