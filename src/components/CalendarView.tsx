@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import type { Match } from "../matches";
 import { tvnzUrl as matchTvnzUrl } from "../matches";
-import type { LiveScore, KnockoutFixture, GroupStandingsMap } from "../hooks/useLiveData";
+import type { LiveScore, KnockoutFixture, GroupStandingsMap, BracketTree } from "../hooks/useLiveData";
 import { knockoutPathForCountry } from "../hooks/useLiveData";
 import { relativeDayLabel } from "../dateUtils";
 import { FullCard } from "./BracketView";
@@ -9,6 +9,7 @@ import { FullCard } from "./BracketView";
 interface Props {
   matches: Match[];
   knockoutFixtures: KnockoutFixture[];
+  bracketTree?: BracketTree;
   scores: Record<string, LiveScore>;
   tracked: string[];
   countryGroups: Record<string, string>;
@@ -98,7 +99,7 @@ interface CalEntry {
 }
 
 export function CalendarView({
-  matches, knockoutFixtures, scores, tracked, countryGroups, groupStandingsMap, nextGameId, onInfo: _onInfo,
+  matches, knockoutFixtures, bracketTree, scores, tracked, countryGroups, groupStandingsMap, nextGameId, onInfo: _onInfo,
 }: Props) {
   const seenIds = new Set<string>();
   const entries: CalEntry[] = [];
@@ -124,7 +125,7 @@ export function CalendarView({
   for (const country of tracked) {
     const group = countryGroups[country] ?? "?";
     if (group === "?") continue;
-    const path = knockoutPathForCountry(country, group, knockoutFixtures);
+    const path = knockoutPathForCountry(country, group, knockoutFixtures, bracketTree);
     for (const f of path) {
       if (seenIds.has(f.id)) continue;
       seenIds.add(f.id);

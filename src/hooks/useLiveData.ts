@@ -67,6 +67,7 @@ export type GroupStandingsMap = Record<string, string[]>;
 export interface LiveData {
   matches: Match[];
   knockoutFixtures: KnockoutFixture[];
+  bracketTree: BracketTree;
   scores: Record<string, LiveScore>;
   groupStandingsMap: GroupStandingsMap;
   advancedSet: Set<string>;    // confirmed advanced to knockout
@@ -76,29 +77,25 @@ export interface LiveData {
 }
 
 /**
- * Resolves a bracket slot label like "Third Place Group A/E/H/I/J" or
- * "Group G Winner" into a list of candidate team names from live standings.
- * Also resolves "Round of 32 N Winner" / "Round of 16 N Winner" etc. by
- * looking up the actual winner of the Nth fixture in that stage.
+ * Resolves a group-stage slot label ("Group G Winner", "Group G 2nd Place",
+ * "Third Place Group A/E/H") to candidate team names from live standings.
+ * Never touches knockout slot labels — those are handled by the bracket tree.
  */
-export function resolveSlot(slot: string, gsMap: GroupStandingsMap, knockoutFixtures?: KnockoutFixture[]): string[] {
+export function resolveSlot(slot: string, gsMap: GroupStandingsMap): string[] {
   const lower = slot.toLowerCase();
 
-  // "Group X Winner" → 1st in that group
   const winnerMatch = lower.match(/^group ([a-l]) winner$/);
   if (winnerMatch) {
     const t = gsMap[winnerMatch[1].toUpperCase()]?.[0];
     return t ? [t] : [];
   }
 
-  // "Group X 2nd Place" / "Group X Runner-up"
   const secondMatch = lower.match(/^group ([a-l]) (2nd place|runner)/);
   if (secondMatch) {
     const t = gsMap[secondMatch[1].toUpperCase()]?.[1];
     return t ? [t] : [];
   }
 
-  // "Third Place Group A/E/H/I/J" — list 3rd-place teams from those groups
   const thirdMatch = slot.match(/Third Place Group ([A-L/]+)/i);
   if (thirdMatch) {
     const groups = thirdMatch[1].split("/");
@@ -107,109 +104,174 @@ export function resolveSlot(slot: string, gsMap: GroupStandingsMap, knockoutFixt
       .filter((t): t is string => !!t);
   }
 
-  // "Round of 32 N Winner" / "Round of 16 N Winner" / etc.
-  // Resolve by finding the Nth (1-based, date-sorted) fixture in that stage
-  // and returning the actual winner if the match is finished.
-  if (knockoutFixtures) {
-    const stageWinnerMatch = slot.match(/^(Round of \d+|Quarter-final|Semi-final|Quarterfinal|Semifinal)\s+(\d+)\s+winner$/i);
-    if (stageWinnerMatch) {
-      const stageRaw = stageWinnerMatch[1];
-      const num = parseInt(stageWinnerMatch[2], 10);
-      // Normalise label variations to our stage names
-      const stageNorm: Record<string, string> = {
-        "round of 32": "Round of 32",
-        "round of 16": "Round of 16",
-        "quarter-final": "Quarter-final",
-        "quarterfinal": "Quarter-final",
-        "semi-final": "Semi-final",
-        "semifinal": "Semi-final",
-      };
-      const stage = stageNorm[stageRaw.toLowerCase()];
-      if (stage) {
-        const stageFixtures = knockoutFixtures
-          .filter(f => f.stage === stage)
-          .sort((a, b) => parseInt(a.id) - parseInt(b.id));
-        const fixture = stageFixtures[num - 1];
-        if (fixture?.score?.status === "finished") {
-          const { home, away, score } = fixture;
-          const winner = score.home > score.away ? home : score.away > score.home ? away : null;
-          if (winner) return [winner];
-        }
-        // Match not yet finished — return both teams as candidates if known
-        if (fixture) {
-          const candidates = [fixture.home, fixture.away].filter(
-            t => !/(group|round of|winner|place|runner|loser|quarterfinal|semifinal|third)/i.test(t)
-          );
-          if (candidates.length) return candidates;
-        }
-      }
-    }
-  }
-
   return [];
 }
 
+const isTBDSlot = (s: string) =>
+  /(group|round of|winner|place|runner|loser|quarterfinal|semifinal|third)/i.test(s);
+
 /**
- * Recursively collects ALL possible teams that could appear in a bracket slot,
- * following the bracket tree all the way to R32 leaves.
+ * Bracket tree: maps each fixture ID to its two feeder fixture IDs.
+ * Built once from the raw ESPN data at fetch time. Navigation is by ID only —
+ * no slot label strings are parsed at query time.
  *
- * Differs from resolveSlot in that it recurses through multiple rounds:
- * "Round of 16 5 Winner" → finds R16-5 fixture → if unresolved, recursively
- * collects both feeders' upstream teams (e.g. Brazil + Netherlands + Morocco).
+ * feedersOf[id] = [homeFeederFixtureId, awayFeederFixtureId]  (either may be null)
+ * parentOf[id]  = parentFixtureId  (undefined for Final)
+ */
+export interface BracketTree {
+  feedersOf: Map<string, [string | null, string | null]>;
+  parentOf:  Map<string, string>;
+}
+
+/**
+ * Build the bracket tree from a flat list of knockout fixtures.
+ *
+ * Strategy: for each fixture whose home/away slot is a "Stage N Winner" label,
+ * find the Nth (ESPN-ID-sorted) fixture in that stage and record the link.
+ * Also handles the case where ESPN has already replaced a slot label with the
+ * real team name — in that case we look for a finished fixture in the expected
+ * feeder stage that has that team as home or away.
+ */
+export function buildBracketTree(fixtures: KnockoutFixture[]): BracketTree {
+  const feedersOf = new Map<string, [string | null, string | null]>();
+  const parentOf  = new Map<string, string>();
+
+  const NEXT_STAGE: Record<string, string> = {
+    "Round of 32":   "Round of 16",
+    "Round of 16":   "Quarter-final",
+    "Quarter-final": "Semi-final",
+    "Semi-final":    "Final",
+  };
+  const PREV_STAGE: Record<string, string> = Object.fromEntries(
+    Object.entries(NEXT_STAGE).map(([k, v]) => [v, k])
+  );
+  const STAGE_LABEL_NORM: Record<string, string> = {
+    "round of 32":   "Round of 32",
+    "round of 16":   "Round of 16",
+    "quarter-final": "Quarter-final",
+    "quarterfinal":  "Quarter-final",
+    "semi-final":    "Semi-final",
+    "semifinal":     "Semi-final",
+    "final":         "Final",
+  };
+
+  // Index: stage → fixtures sorted by ESPN ID (= bracket slot order)
+  const byStage = new Map<string, KnockoutFixture[]>();
+  for (const f of fixtures) {
+    if (!byStage.has(f.stage)) byStage.set(f.stage, []);
+    byStage.get(f.stage)!.push(f);
+  }
+  for (const arr of byStage.values()) {
+    arr.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+  }
+
+  // For each fixture, determine its two feeders
+  for (const f of fixtures) {
+    const prevStage = PREV_STAGE[f.stage];
+    if (!prevStage) continue; // R32 has no prev stage in knockout tree
+
+    const prevArr = byStage.get(prevStage) ?? [];
+    const feeders: [string | null, string | null] = [null, null];
+
+    for (let side = 0; side < 2; side++) {
+      const slot = side === 0 ? f.home : f.away;
+
+      // Case 1: slot is a "Stage N Winner" label → look up by index
+      const slotM = slot.match(/^(Round of \d+|Quarter-final|Semi-final|Quarterfinal|Semifinal)\s+(\d+)\s+winner$/i);
+      if (slotM) {
+        const stage = STAGE_LABEL_NORM[slotM[1].toLowerCase()];
+        const num   = parseInt(slotM[2], 10);
+        if (stage === prevStage) {
+          const feeder = (byStage.get(stage) ?? [])[num - 1];
+          if (feeder) {
+            feeders[side] = feeder.id;
+            parentOf.set(feeder.id, f.id);
+          }
+        }
+        continue;
+      }
+
+      // Case 2: slot is already a real team name (ESPN resolved it)
+      // Find the finished feeder fixture in prevStage that has this team
+      if (!isTBDSlot(slot)) {
+        const slotLower = slot.toLowerCase();
+        const feeder = prevArr.find(pf =>
+          pf.home.toLowerCase() === slotLower || pf.away.toLowerCase() === slotLower
+        );
+        if (feeder) {
+          feeders[side] = feeder.id;
+          parentOf.set(feeder.id, f.id);
+        }
+      }
+
+      // Case 3: slot is a group-stage placeholder ("Group G Winner" etc.)
+      // R32 feeders from the group stage — no prev knockout fixture, leave null
+    }
+
+    feedersOf.set(f.id, feeders);
+  }
+
+  return { feedersOf, parentOf };
+}
+
+/**
+ * Given a fixture and the bracket tree, return the winner of that fixture
+ * (if finished), or null if still TBD.
+ */
+function fixtureWinner(f: KnockoutFixture): string | null {
+  if (f.score?.status !== "finished") return null;
+  if (f.score.home > f.score.away) return f.home;
+  if (f.score.away > f.score.home) return f.away;
+  return null;
+}
+
+/**
+ * Recursively collects all possible teams that could appear in a fixture slot
+ * by walking the bracket tree upward (toward R32 leaves).
+ *
+ * Returns a single-element array when the outcome is confirmed, or multiple
+ * candidates when the slot is still undecided.
  */
 export function upstreamTeams(
-  slot: string,
+  fixtureId: string,
+  side: "home" | "away",
+  fixtureMap: Map<string, KnockoutFixture>,
+  tree: BracketTree,
   gsMap: GroupStandingsMap,
-  knockoutFixtures: KnockoutFixture[],
   depth = 0
 ): string[] {
-  if (depth > 5) return [];
+  if (depth > 6) return [];
 
-  // Real team name
-  if (!/(group|round of|winner|place|runner|loser|quarterfinal|semifinal|third)/i.test(slot)) {
-    return [slot];
-  }
+  const f = fixtureMap.get(fixtureId);
+  if (!f) return [];
 
-  // Group stage slots → resolveSlot handles all group patterns
+  const slot = side === "home" ? f.home : f.away;
+
+  // Already a real team name
+  if (!isTBDSlot(slot)) return [slot];
+
+  // Group-stage slot: resolve from standings
   if (/^(group |third place group)/i.test(slot)) {
-    return resolveSlot(slot, gsMap, knockoutFixtures);
+    return resolveSlot(slot, gsMap);
   }
 
-  // Knockout slot: "Round of 32 N Winner", "Round of 16 N Winner", etc.
-  const m = slot.match(/^(Round of \d+|Quarter-final|Semi-final|Quarterfinal|Semifinal)\s+(\d+)\s+winner$/i);
-  if (m) {
-    const stageNorm: Record<string, string> = {
-      "round of 32":   "Round of 32",
-      "round of 16":   "Round of 16",
-      "quarter-final": "Quarter-final",
-      "quarterfinal":  "Quarter-final",
-      "semi-final":    "Semi-final",
-      "semifinal":     "Semi-final",
-    };
-    const stage = stageNorm[m[1].toLowerCase()];
-    const num = parseInt(m[2], 10);
-    if (stage) {
-      const stageFixtures = knockoutFixtures
-        .filter(f => f.stage === stage)
-        .sort((a, b) => parseInt(a.id) - parseInt(b.id));
-      const fixture = stageFixtures[num - 1];
-      if (fixture) {
-        if (fixture.score?.status === "finished") {
-          const winner = fixture.score.home > fixture.score.away ? fixture.home
-            : fixture.score.away > fixture.score.home ? fixture.away
-            : null;
-          return winner ? [winner] : [];
-        }
-        // Unresolved: collect all teams reachable from both sides
-        return [
-          ...upstreamTeams(fixture.home, gsMap, knockoutFixtures, depth + 1),
-          ...upstreamTeams(fixture.away, gsMap, knockoutFixtures, depth + 1),
-        ];
-      }
-    }
-  }
+  // Knockout slot: look up the feeder fixture from the tree
+  const feeders = tree.feedersOf.get(fixtureId);
+  const feederId = feeders?.[side === "home" ? 0 : 1] ?? null;
+  if (!feederId) return []; // no feeder linked yet
 
-  return [];
+  const feeder = fixtureMap.get(feederId);
+  if (!feeder) return [];
+
+  // If the feeder is finished, return the winner
+  const winner = fixtureWinner(feeder);
+  if (winner) return [winner];
+
+  // Feeder not yet finished — recurse into both of its slots
+  return [
+    ...upstreamTeams(feederId, "home", fixtureMap, tree, gsMap, depth + 1),
+    ...upstreamTeams(feederId, "away", fixtureMap, tree, gsMap, depth + 1),
+  ];
 }
 
 const ESPN_BASE      = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard";
@@ -503,141 +565,43 @@ function parseKnockoutFixtures(events: unknown[]): KnockoutFixture[] {
 }
 
 /**
- * Returns the full bracket path for a country — from their R32 all the way
- * to the Final — by chaining slot labels forward.
- *
- * ESPN encodes the bracket as:
- *   R32 #2: Belgium vs Third Place ...
- *   R16 #11: Round of 32 2 Winner vs Round of 32 5 Winner
- *   QF  #19: Round of 16 5 Winner vs Round of 16 6 Winner
- *   SF  #22: Quarterfinal 1 Winner vs Quarterfinal 2 Winner
- *   F   #25: Semifinal 1 Winner vs Semifinal 2 Winner
- *
- * We start by finding the fixture where the country is named (or is in a
- * group slot), then derive the "winner label" for that fixture's position
- * and recursively find the next fixture that mentions it.
+ * Returns the full bracket path for a country from R32 to the Final,
+ * walking the bracket tree forward by fixture ID — no slot label parsing.
  */
-/**
- * Extract a single number from a slot label like "Round of 32 2 Winner" → 2.
- * Returns null if not found.
- */
-function slotNum(label: string): number | null {
-  const m = label.match(/\b(\d+)\s+winner\b/i);
-  return m ? parseInt(m[1], 10) : null;
-}
-
-/**
- * Given a fixture and which side (home/away) the country is on,
- * return the slot label they'd become as a winner, e.g. "Round of 32 2 Winner".
- * We look at the QF/SF/Final fixtures to find which slot number references this fixture.
- */
-function winnerSlotLabel(fixture: KnockoutFixture, fixtures: KnockoutFixture[]): string | null {
-  const stagePrefix: Record<string, string> = {
-    "Round of 32":   "Round of 32",
-    "Round of 16":   "Round of 16",
-    "Quarter-final": "Quarterfinal",
-    "Semi-final":    "Semifinal",
-  };
-  const prefix = stagePrefix[fixture.stage];
-  if (!prefix) return null;
-
-  const nextStageName: Record<string, string> = {
-    "Round of 32":   "Round of 16",
-    "Round of 16":   "Quarter-final",
-    "Quarter-final": "Semi-final",
-    "Semi-final":    "Final",
-  };
-  const nextStage = nextStageName[fixture.stage];
-  if (!nextStage) return null;
-
-  // Sort this stage's fixtures by ESPN event ID — ESPN slot numbers match ID order
-  const sameStage = fixtures
-    .filter(f => f.stage === fixture.stage)
-    .sort((a, b) => parseInt(a.id) - parseInt(b.id));
-  const myIdx = sameStage.findIndex(f => f.id === fixture.id);
-  if (myIdx === -1) return null;
-
-  // Scan next-round fixtures: find which slot label references `prefix N Winner`
-  // where the Nth date-sorted fixture in our stage is this fixture.
-  // We collect all slot numbers mentioned in next-round fixtures, then find which
-  // number N satisfies: sameStage[N-1].id === fixture.id.
-  const nextFixtures = fixtures.filter(f => f.stage === nextStage);
-  const prefixLower = prefix.toLowerCase();
-
-  for (const nf of nextFixtures) {
-    for (const slot of [nf.home, nf.away]) {
-      if (!slot.toLowerCase().startsWith(prefixLower)) continue;
-      const num = slotNum(slot);
-      if (num === null) continue;
-      // num is ESPN's slot number. Check if the num-th fixture (1-based, date-sorted)
-      // in our stage is this fixture.
-      if (sameStage[num - 1]?.id === fixture.id) {
-        return slot; // return the exact slot label ESPN uses (preserving capitalisation)
-      }
-    }
-  }
-
-  // Fallback: if no downstream fixture found yet (e.g. early in tournament),
-  // use date-sort index. This will work once R16+ fixtures populate.
-  return `${prefix} ${myIdx + 1} Winner`;
-}
-
 export function knockoutPathForCountry(
   country: string,
   group: string,
-  fixtures: KnockoutFixture[]
+  fixtures: KnockoutFixture[],
+  tree?: BracketTree
 ): KnockoutFixture[] {
   const lower = country.toLowerCase();
-  const groupSlots = [
-    `group ${group} winner`,
-    `group ${group} 2nd place`,
-    `group ${group} runner`,
+  const groupSlotPrefixes = [
+    `group ${group.toLowerCase()} winner`,
+    `group ${group.toLowerCase()} 2nd`,
+    `group ${group.toLowerCase()} runner`,
   ];
 
-  function slotMatches(slot: string, label: string): boolean {
-    return slot.toLowerCase().includes(label.toLowerCase());
-  }
-
-  function findFixtureContaining(label: string): KnockoutFixture | undefined {
-    return fixtures.find(f =>
-      slotMatches(f.home, label) || slotMatches(f.away, label)
-    );
-  }
-
-  // Find R32 fixture
+  // Find the R32 fixture this country is in (by real name or group slot)
   const r32 = fixtures.find(f => {
     const h = f.home.toLowerCase();
     const a = f.away.toLowerCase();
     return h === lower || a === lower ||
-      groupSlots.some(slot => h.includes(slot) || a.includes(slot));
+      groupSlotPrefixes.some(p => h.startsWith(p) || a.startsWith(p));
   });
   if (!r32) return [];
 
   const path: KnockoutFixture[] = [r32];
+  const fixtureById = new Map(fixtures.map(f => [f.id, f]));
+  const t = tree ?? buildBracketTree(fixtures);
 
-  // Chain: each step we find the winner-slot label for the current fixture,
-  // then search for the next fixture that contains that label.
-  // If ESPN has already resolved the slot to the actual team name (e.g. after
-  // the team wins), fall back to searching by team name directly.
-  let current = r32;
+  let currentId = r32.id;
   for (let depth = 0; depth < 4; depth++) {
-    const lbl = winnerSlotLabel(current, fixtures);
-    if (!lbl) break;
-    let next = findFixtureContaining(lbl);
-    if (!next) {
-      // ESPN may have replaced the slot label with the real team name once the
-      // country wins — search by team name in the expected next stage only.
-      const collectedIds = new Set(path.map(f => f.id));
-      next = fixtures.find(f => {
-        if (collectedIds.has(f.id)) return false;
-        const h = f.home.toLowerCase();
-        const a = f.away.toLowerCase();
-        return h === lower || a === lower;
-      });
-    }
-    if (!next) break;
-    path.push(next);
-    current = next;
+    const parentId = t.parentOf.get(currentId);
+    if (!parentId) break;
+    const parent = fixtureById.get(parentId);
+    if (!parent) break;
+    path.push(parent);
+    currentId = parentId;
   }
 
   return path;
@@ -646,6 +610,7 @@ export function knockoutPathForCountry(
 export function useLiveData(): LiveData {
   const [matches, setMatches] = useState<Match[]>([]);
   const [knockoutFixtures, setKnockoutFixtures] = useState<KnockoutFixture[]>([]);
+  const [bracketTree, setBracketTree] = useState<BracketTree>(() => ({ feedersOf: new Map(), parentOf: new Map() }));
   const [scores, setScores] = useState<Record<string, LiveScore>>({});
   const [groupStandingsMap, setGroupStandingsMap] = useState<GroupStandingsMap>({});
   const [advancedSet, setAdvancedSet] = useState<Set<string>>(new Set());
@@ -803,6 +768,7 @@ export function useLiveData(): LiveData {
         setMatches(fetched);
         setScores(fetchedScores);
         setKnockoutFixtures(knockouts);
+        setBracketTree(buildBracketTree(knockouts));
         setGroupStandingsMap(gsMap);
         setAdvancedSet(advanced);
         setEliminatedSet(eliminated);
@@ -824,5 +790,5 @@ export function useLiveData(): LiveData {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { matches, knockoutFixtures, scores, groupStandingsMap, advancedSet, eliminatedSet, loading, error };
+  return { matches, knockoutFixtures, bracketTree, scores, groupStandingsMap, advancedSet, eliminatedSet, loading, error };
 }

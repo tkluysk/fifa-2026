@@ -7,8 +7,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import type { KnockoutFixture, GroupStandingsMap } from "../hooks/useLiveData";
-import { upstreamTeams, knockoutPathForCountry } from "../hooks/useLiveData";
+import type { KnockoutFixture, GroupStandingsMap, BracketTree } from "../hooks/useLiveData";
+import { upstreamTeams, knockoutPathForCountry, buildBracketTree } from "../hooks/useLiveData";
 import { flag, countryColor } from "../countryInfo"; // countryColor used in FocusedBracket
 import { isNewZealand } from "../dateUtils";
 
@@ -102,6 +102,7 @@ function CandidateTooltip({ candidates, tracked }: { candidates: string[]; track
 
 interface Props {
   fixtures: KnockoutFixture[];
+  bracketTree?: BracketTree;
   tracked: string[];
   groupStandingsMap: GroupStandingsMap;
   countryGroups: Record<string, string>;
@@ -156,14 +157,16 @@ const COL_GAP = 28; // horizontal gap between columns
 
 // ── Main export ───────────────────────────────────────────────────────────
 
-export function BracketView({ fixtures, tracked, groupStandingsMap, countryGroups, showFull = false, nextGameId = null }: Props & { showFull?: boolean }) {
+export function BracketView({ fixtures, bracketTree: treeProp, tracked, groupStandingsMap, countryGroups, showFull = false, nextGameId = null }: Props & { showFull?: boolean }) {
   if (!fixtures.length || !tracked.length) return null;
+
+  const tree = treeProp ?? buildBracketTree(fixtures);
 
   const paths = tracked
     .map(country => {
       const group = countryGroups[country] ?? "?";
       if (group === "?") return null;
-      const path = knockoutPathForCountry(country, group, fixtures);
+      const path = knockoutPathForCountry(country, group, fixtures, tree);
       if (!path.length) return null;
       return { country, path };
     })
@@ -181,9 +184,9 @@ export function BracketView({ fixtures, tracked, groupStandingsMap, countryGroup
   return (
     <div className="bracket-wrap">
       {showFull ? (
-        <FullBracket byStage={byStage} trackedIds={trackedIds} tracked={tracked} gsMap={groupStandingsMap} knockoutFixtures={fixtures} nextGameId={nextGameId} />
+        <FullBracket byStage={byStage} trackedIds={trackedIds} tracked={tracked} gsMap={groupStandingsMap} knockoutFixtures={fixtures} tree={tree} nextGameId={nextGameId} />
       ) : (
-        <FocusedBracket paths={paths} gsMap={groupStandingsMap} knockoutFixtures={fixtures} nextGameId={nextGameId} />
+        <FocusedBracket paths={paths} gsMap={groupStandingsMap} knockoutFixtures={fixtures} tree={tree} nextGameId={nextGameId} />
       )}
     </div>
   );
@@ -191,10 +194,11 @@ export function BracketView({ fixtures, tracked, groupStandingsMap, countryGroup
 
 // ── Focused view ──────────────────────────────────────────────────────────
 
-function FocusedBracket({ paths, gsMap, knockoutFixtures, nextGameId }: {
+function FocusedBracket({ paths, gsMap, knockoutFixtures, tree, nextGameId }: {
   paths: { country: string; path: KnockoutFixture[] }[];
   gsMap: GroupStandingsMap;
   knockoutFixtures: KnockoutFixture[];
+  tree: BracketTree;
   nextGameId: string | null;
 }) {
   const stagesPresent = STAGES.filter(s => paths.some(p => p.path.some(f => f.stage === s)));
@@ -223,7 +227,7 @@ function FocusedBracket({ paths, gsMap, knockoutFixtures, nextGameId }: {
                 return (
                   <div key={stage} className="bracket-flow-cell">
                     {fixture ? (
-                      <FlowCard fixture={fixture} country={country} gsMap={gsMap} accent={accent} knockoutFixtures={knockoutFixtures} isNext={fixture.id === nextGameId} />
+                      <FlowCard fixture={fixture} country={country} gsMap={gsMap} accent={accent} knockoutFixtures={knockoutFixtures} tree={tree} isNext={fixture.id === nextGameId} />
                     ) : (
                       <div className="bracket-flow-empty">?</div>
                     )}
@@ -239,23 +243,25 @@ function FocusedBracket({ paths, gsMap, knockoutFixtures, nextGameId }: {
   );
 }
 
-function FlowCard({ fixture, country, gsMap, accent, knockoutFixtures, isNext }: {
+function FlowCard({ fixture, country, gsMap, accent, knockoutFixtures, tree, isNext }: {
   fixture: KnockoutFixture;
   country: string;
   gsMap: GroupStandingsMap;
   accent: string;
   knockoutFixtures: KnockoutFixture[];
+  tree: BracketTree;
   isNext?: boolean;
 }) {
+  const fixtureMap = new Map(knockoutFixtures.map(f => [f.id, f]));
   const countryLower = country.toLowerCase();
-  const isHome =
-    fixture.home.toLowerCase() === countryLower ||
-    (!isKnownTeam(fixture.home) &&
-      upstreamTeams(fixture.home, gsMap, knockoutFixtures)
-        .some(t => t.toLowerCase() === countryLower));
+  const homeCandidates = upstreamTeams(fixture.id, "home", fixtureMap, tree, gsMap);
+  const awayCandidates = upstreamTeams(fixture.id, "away", fixtureMap, tree, gsMap);
+  const isHome = fixture.home.toLowerCase() === countryLower ||
+    homeCandidates.some(t => t.toLowerCase() === countryLower);
   const opponentSlot = isHome ? fixture.away : fixture.home;
   const known = isKnownTeam(opponentSlot);
-  const candidates = known ? [] : upstreamTeams(opponentSlot, gsMap, knockoutFixtures);
+  const candidates = isHome ? awayCandidates : homeCandidates;
+  const resolvedOpponent = !known && candidates.length === 1 ? candidates[0] : null;
 
   const finished = fixture.score?.status === "finished";
   const live = fixture.score?.status === "in_progress";
@@ -285,8 +291,8 @@ function FlowCard({ fixture, country, gsMap, accent, knockoutFixtures, isNext }:
         <div className="bracket-flow-date">{nzt}</div>
       )}
       <div className="bracket-flow-opp">
-        {known ? (
-          <><span>{flag(opponentSlot)}</span> <span>{opponentSlot}</span></>
+        {known || resolvedOpponent ? (
+          <><span>{flag(resolvedOpponent ?? opponentSlot)}</span> <span>{resolvedOpponent ?? opponentSlot}</span></>
         ) : candidates.length > 0 ? (
           <CandidateTooltip candidates={candidates} />
         ) : (
@@ -294,7 +300,7 @@ function FlowCard({ fixture, country, gsMap, accent, knockoutFixtures, isNext }:
         )}
       </div>
       <div className="bracket-flow-footer">
-        {tvnz && known && isNewZealand() && <a className="bracket-flow-tvnz" href={tvnz} target="_blank" rel="noreferrer">📺</a>}
+        {tvnz && (known || resolvedOpponent) && isNewZealand() && <a className="bracket-flow-tvnz" href={tvnz} target="_blank" rel="noreferrer">📺</a>}
         <a className="bracket-cal-btn" href={gcalUrl(fixture)} target="_blank" rel="noreferrer" title="Add to Google Calendar">
           <CalIcon size={11} />
         </a>
@@ -474,12 +480,13 @@ function buildLayout(byStage: Record<string, KnockoutFixture[]>, stages: string[
   return { layouts, connectors, totalW, totalH };
 }
 
-function FullBracket({ byStage, trackedIds, tracked, gsMap, knockoutFixtures, nextGameId }: {
+function FullBracket({ byStage, trackedIds, tracked, gsMap, knockoutFixtures, tree, nextGameId }: {
   byStage: Record<string, KnockoutFixture[]>;
   trackedIds: Set<string>;
   tracked: string[];
   gsMap: GroupStandingsMap;
   knockoutFixtures: KnockoutFixture[];
+  tree: BracketTree;
   nextGameId: string | null;
 }) {
   const stages = STAGES.filter(s => byStage[s]?.length);
@@ -526,7 +533,7 @@ function FullBracket({ byStage, trackedIds, tracked, gsMap, knockoutFixtures, ne
               key={fixture.id}
               style={{ position: "absolute", top, left, width: CARD_W, height: CARD_H }}
             >
-              <FullCard fixture={fixture} highlighted={highlighted} gsMap={gsMap} tracked={tracked} knockoutFixtures={knockoutFixtures} isNext={fixture.id === nextGameId} />
+              <FullCard fixture={fixture} highlighted={highlighted} gsMap={gsMap} tracked={tracked} knockoutFixtures={knockoutFixtures} tree={tree} isNext={fixture.id === nextGameId} />
             </div>
           );
         })}
@@ -535,14 +542,17 @@ function FullBracket({ byStage, trackedIds, tracked, gsMap, knockoutFixtures, ne
   );
 }
 
-export function FullCard({ fixture, highlighted, gsMap, tracked, knockoutFixtures, isNext }: {
+export function FullCard({ fixture, highlighted, gsMap, tracked, knockoutFixtures, tree: treeProp, isNext }: {
   fixture: KnockoutFixture;
   highlighted: boolean;
   gsMap: GroupStandingsMap;
   tracked: string[];
   knockoutFixtures: KnockoutFixture[];
+  tree?: BracketTree;
   isNext?: boolean;
 }) {
+  const tree = treeProp ?? buildBracketTree(knockoutFixtures);
+  const fixtureMap = new Map(knockoutFixtures.map(f => [f.id, f]));
   const finished = fixture.score?.status === "finished";
   const live = fixture.score?.status === "in_progress";
   const homeWon = finished && (fixture.score!.home > fixture.score!.away);
@@ -560,9 +570,9 @@ export function FullCard({ fixture, highlighted, gsMap, tracked, knockoutFixture
     >
       {live && <span className="card-corner-badge card-corner-badge--live">LIVE</span>}
       {isNext && !live && <span className="card-corner-badge card-corner-badge--next">NEXT</span>}
-      <FullTeamRow name={fixture.home} score={fixture.score?.home} won={homeWon} lost={finished && !homeWon} gsMap={gsMap} tracked={tracked} knockoutFixtures={knockoutFixtures} />
+      <FullTeamRow fixtureId={fixture.id} side="home" score={fixture.score?.home} won={homeWon} lost={finished && !homeWon} gsMap={gsMap} tracked={tracked} fixtureMap={fixtureMap} tree={tree} />
       <div className="bracket-divider" />
-      <FullTeamRow name={fixture.away} score={fixture.score?.away} won={awayWon} lost={finished && !awayWon} gsMap={gsMap} tracked={tracked} knockoutFixtures={knockoutFixtures} />
+      <FullTeamRow fixtureId={fixture.id} side="away" score={fixture.score?.away} won={awayWon} lost={finished && !awayWon} gsMap={gsMap} tracked={tracked} fixtureMap={fixtureMap} tree={tree} />
       <div className="bracket-full-footer">
         <span className="bracket-full-date">{nzt}</span>
         {tvnz && isKnownTeam(fixture.home) && isKnownTeam(fixture.away) && isNewZealand() && <a className="bracket-flow-tvnz" href={tvnz} target="_blank" rel="noreferrer">📺</a>}
@@ -574,19 +584,26 @@ export function FullCard({ fixture, highlighted, gsMap, tracked, knockoutFixture
   );
 }
 
-function FullTeamRow({ name, score, won, lost, gsMap, tracked, knockoutFixtures }: {
-  name: string; score?: number; won: boolean; lost: boolean; gsMap: GroupStandingsMap; tracked: string[]; knockoutFixtures: KnockoutFixture[];
+function FullTeamRow({ fixtureId, side, score, won, lost, gsMap, tracked, fixtureMap, tree }: {
+  fixtureId: string; side: "home" | "away"; score?: number; won: boolean; lost: boolean;
+  gsMap: GroupStandingsMap; tracked: string[];
+  fixtureMap: Map<string, KnockoutFixture>; tree: BracketTree;
 }) {
-  const known = isKnownTeam(name);
-  const candidates = known ? [] : upstreamTeams(name, gsMap, knockoutFixtures);
-  const isTracked = tracked.some(c => c.toLowerCase() === name.toLowerCase());
-  const trackedCand = candidates.find(c => tracked.map(t => t.toLowerCase()).includes(c.toLowerCase()));
+  const fixture = fixtureMap.get(fixtureId);
+  const rawName = fixture ? (side === "home" ? fixture.home : fixture.away) : "";
+  const known = isKnownTeam(rawName);
+  const candidates = upstreamTeams(fixtureId, side, fixtureMap, tree, gsMap);
+  const resolvedName = !known && candidates.length === 1 ? candidates[0] : null;
+  const displayName = resolvedName ?? rawName;
+  const trackedLower = tracked.map(t => t.toLowerCase());
+  const isTracked = trackedLower.includes(displayName.toLowerCase());
+  const trackedCand = !resolvedName && candidates.find(c => trackedLower.includes(c.toLowerCase()));
 
   return (
     <div className={`bracket-full-team${isTracked || trackedCand ? " bracket-full-team--tracked" : ""}${won ? " bracket-full-team--won" : lost ? " bracket-full-team--lost" : ""}`}>
       <span className="bracket-full-team-name">
-        {known
-          ? <><span>{flag(name)}</span> <span className={isTracked ? "bracket-name-bold" : ""}>{name}</span></>
+        {known || resolvedName
+          ? <><span>{flag(displayName)}</span> <span className={isTracked ? "bracket-name-bold" : ""}>{displayName}</span></>
           : candidates.length > 0
             ? <CandidateTooltip candidates={candidates} tracked={tracked} />
             : <span className="bracket-tbd">?</span>

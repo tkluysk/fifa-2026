@@ -1,5 +1,5 @@
-import type { KnockoutFixture, GroupStandingsMap } from "../hooks/useLiveData";
-import { upstreamTeams } from "../hooks/useLiveData";
+import type { KnockoutFixture, GroupStandingsMap, BracketTree } from "../hooks/useLiveData";
+import { upstreamTeams, buildBracketTree } from "../hooks/useLiveData";
 import { countryColor, flag } from "../countryInfo";
 import { tempForCity } from "../cityTemps";
 import { MatchTimeline } from "./MatchCard";
@@ -25,6 +25,7 @@ interface Props {
   country: string;
   groupStandingsMap: GroupStandingsMap;
   knockoutFixtures: KnockoutFixture[];
+  bracketTree?: BracketTree;
   onInfo?: (country: string) => void;
   isNext?: boolean;
 }
@@ -58,21 +59,23 @@ function stageCode(stage: string): string {
   return stage.slice(0, 3).toUpperCase();
 }
 
-export function PotentialMatchCard({ fixture, country, groupStandingsMap, knockoutFixtures, onInfo, isNext }: Props) {
+export function PotentialMatchCard({ fixture, country, groupStandingsMap, knockoutFixtures, bracketTree, onInfo, isNext }: Props) {
   const homeColor = countryColor(country);
-  // When future fixtures still carry slot labels (e.g. "Round of 16 2 Winner"),
-  // we can't compare to the country name directly — check upstream teams instead.
+  const tree = bracketTree ?? buildBracketTree(knockoutFixtures);
+  const fixtureMap = new Map(knockoutFixtures.map(f => [f.id, f]));
   const countryLower = country.toLowerCase();
-  const isHome =
-    fixture.home.toLowerCase() === countryLower ||
-    (!isKnownTeam(fixture.home) &&
-      upstreamTeams(fixture.home, groupStandingsMap, knockoutFixtures)
-        .some(t => t.toLowerCase() === countryLower));
+  const homeCandidates = upstreamTeams(fixture.id, "home", fixtureMap, tree, groupStandingsMap);
+  const awayCandidates = upstreamTeams(fixture.id, "away", fixtureMap, tree, groupStandingsMap);
+  const isHome = fixture.home.toLowerCase() === countryLower ||
+    homeCandidates.some(t => t.toLowerCase() === countryLower);
   const opponentSlot = isHome ? fixture.away : fixture.home;
   const opponentKnown = isKnownTeam(opponentSlot);
-  const candidates = (opponentKnown ? [] : upstreamTeams(opponentSlot, groupStandingsMap, knockoutFixtures))
+  const rawCandidates = isHome ? awayCandidates : homeCandidates;
+  const resolvedOpponent = !opponentKnown && rawCandidates.length === 1 ? rawCandidates[0] : null;
+  const candidates = (opponentKnown || resolvedOpponent ? [] : rawCandidates)
     .filter(c => c.toLowerCase() !== country.toLowerCase());
-  const awayColor = opponentKnown ? countryColor(opponentSlot) : { bg: "var(--surface)", accent: "var(--border)" };
+  const displayOpponent = resolvedOpponent ?? (opponentKnown ? opponentSlot : null);
+  const awayColor = displayOpponent ? countryColor(displayOpponent) : { bg: "var(--surface)", accent: "var(--border)" };
   const tvnzLink = fixture.tvnzPath ? `${TVNZ_BASE}${fixture.tvnzPath}` : null;
 
   const localDate = formatSmartDate(fixture.startUtc);
@@ -94,7 +97,7 @@ export function PotentialMatchCard({ fixture, country, groupStandingsMap, knocko
       {isNext && !isLive && <span className="card-corner-badge card-corner-badge--next">NEXT</span>}
       {/* Background flags */}
       <span className="team-flag team-flag--home" aria-hidden="true">{flag(country)}</span>
-      {opponentKnown && <span className="team-flag team-flag--away" aria-hidden="true">{flag(opponentSlot)}</span>}
+      {displayOpponent && <span className="team-flag team-flag--away" aria-hidden="true">{flag(displayOpponent)}</span>}
       {/* Meta row — matches group game layout */}
       <div className="match-meta">
         <span className="potential-badge">{stageCode(fixture.stage)}</span>
@@ -102,7 +105,7 @@ export function PotentialMatchCard({ fixture, country, groupStandingsMap, knocko
         {fixture.score?.status === "finished" && <span className="past-badge">FT</span>}
         <span className="match-date--next">{localDate}</span>
         <span className="match-tz-label">{city} time</span>
-        {tvnzLink && opponentKnown && isNewZealand() && <a href={tvnzLink} target="_blank" rel="noreferrer" className="btn-tvnz-inline">📺 TVNZ+</a>}
+        {tvnzLink && displayOpponent && isNewZealand() && <a href={tvnzLink} target="_blank" rel="noreferrer" className="btn-tvnz-inline">📺 TVNZ+</a>}
         <a className="btn-cal-side" href={gcalUrl(fixture, country)} target="_blank" rel="noreferrer" title="Add to Google Calendar">
           <CalIcon />
         </a>
@@ -132,10 +135,10 @@ export function PotentialMatchCard({ fixture, country, groupStandingsMap, knocko
           </div>
 
           <div className="team away">
-            {opponentKnown ? (
+            {displayOpponent ? (
               <>
-                {onInfo && <button className="info-btn" style={{ marginRight: 6 }} aria-label={`Info about ${opponentSlot}`} onClick={() => onInfo(opponentSlot)} />}
-                <span className="team-name">{opponentSlot}</span>
+                {onInfo && <button className="info-btn" style={{ marginRight: 6 }} aria-label={`Info about ${displayOpponent}`} onClick={() => onInfo(displayOpponent)} />}
+                <span className="team-name">{displayOpponent}</span>
               </>
             ) : candidates.length > 0 && candidates.length <= 4 ? (
               <div className="potential-candidates">

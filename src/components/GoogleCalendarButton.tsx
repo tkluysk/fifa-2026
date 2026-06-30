@@ -1,18 +1,19 @@
 import { useGoogleCalendar } from "../hooks/useGoogleCalendar";
 import type { Match } from "../matches";
-import type { KnockoutFixture, GroupStandingsMap } from "../hooks/useLiveData";
+import type { KnockoutFixture, GroupStandingsMap, BracketTree } from "../hooks/useLiveData";
 import { knockoutPathForCountry } from "../hooks/useLiveData";
 
 interface Props {
   matches: Match[];
   knockoutFixtures: KnockoutFixture[];
+  bracketTree?: BracketTree;
   selected: string[];
   countryGroups: Record<string, string>;
   groupStandingsMap: GroupStandingsMap;
   loading: boolean;
 }
 
-export function GoogleCalendarButton({ matches, knockoutFixtures, selected, countryGroups, groupStandingsMap, loading }: Props) {
+export function GoogleCalendarButton({ matches, knockoutFixtures, bracketTree, selected, countryGroups, groupStandingsMap, loading }: Props) {
   const { hasClientId, status, error, lastSync, sync } = useGoogleCalendar();
 
   if (!hasClientId) return null;
@@ -22,7 +23,7 @@ export function GoogleCalendarButton({ matches, knockoutFixtures, selected, coun
     const knockouts = selected.flatMap((country) => {
       const group = countryGroups[country] ?? "?";
       if (group === "?") return [];
-      return knockoutPathForCountry(country, group, knockoutFixtures);
+      return knockoutPathForCountry(country, group, knockoutFixtures, bracketTree);
     });
     // Deduplicate by fixture id
     const seen = new Set<string>();

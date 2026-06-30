@@ -47,7 +47,7 @@ export default function App() {
     document.documentElement.setAttribute("data-theme", theme === "light" ? "light" : "");
     localStorage.setItem(LS_THEME, theme);
   }, [theme]);
-  const { matches: allMatches, knockoutFixtures, scores, groupStandingsMap, advancedSet, eliminatedSet, loading: liveLoading, error: liveError } = useLiveData();
+  const { matches: allMatches, knockoutFixtures, bracketTree, scores, groupStandingsMap, advancedSet, eliminatedSet, loading: liveLoading, error: liveError } = useLiveData();
 
   const countries = countriesFromMatches(allMatches);
   const matches = matchesForCountries(allMatches, selected);
@@ -89,7 +89,7 @@ export default function App() {
         })
         .forEach(m => candidates.push({ id: m.id, t: new Date(m.startUtc).getTime() }));
       if (g !== "?") {
-        const p = knockoutPathForCountry(c, g, knockoutFixtures);
+        const p = knockoutPathForCountry(c, g, knockoutFixtures, bracketTree);
         const upKO = p.filter(f => f.score?.status !== "finished");
         upKO
           .filter((f) => p.slice(0, p.indexOf(f)).every(prev => prev.score?.status === "finished"))
@@ -137,6 +137,7 @@ export default function App() {
           <GoogleCalendarButton
             matches={matches}
             knockoutFixtures={knockoutFixtures}
+            bracketTree={bracketTree}
             selected={selected}
             countryGroups={countryGroups}
             groupStandingsMap={groupStandingsMap}
@@ -154,6 +155,7 @@ export default function App() {
         </summary>
         <BracketView
           fixtures={knockoutFixtures}
+          bracketTree={bracketTree}
           tracked={selected}
           groupStandingsMap={groupStandingsMap}
           countryGroups={countryGroups}
@@ -180,6 +182,7 @@ export default function App() {
         </summary>
         <BracketView
           fixtures={knockoutFixtures}
+          bracketTree={bracketTree}
           tracked={selected}
           groupStandingsMap={groupStandingsMap}
           countryGroups={countryGroups}
@@ -213,6 +216,7 @@ export default function App() {
             <CalendarView
               matches={matches}
               knockoutFixtures={knockoutFixtures}
+              bracketTree={bracketTree}
               scores={scores}
               tracked={selected}
               countryGroups={countryGroups}
@@ -237,7 +241,7 @@ export default function App() {
               );
 
               // Knockout path
-              const path = group !== "?" ? knockoutPathForCountry(country, group, knockoutFixtures) : [];
+              const path = group !== "?" ? knockoutPathForCountry(country, group, knockoutFixtures, bracketTree) : [];
               const pastKO = path.filter(f => f.score?.status === "finished");
               const upcomingKO = path.filter(f => f.score?.status !== "finished");
               const confirmedKO = upcomingKO.filter((f) => {
@@ -297,7 +301,7 @@ export default function App() {
                           <summary className="ko-details-summary">Past knockout ({pastKO.length})</summary>
                           <ul className="match-list ko-details-list">
                             {pastKO.map(f => (
-                              <PotentialMatchCard key={`${f.id}-${country}-past`} fixture={f} country={country} groupStandingsMap={groupStandingsMap} knockoutFixtures={knockoutFixtures} onInfo={setInfoCountry} />
+                              <PotentialMatchCard key={`${f.id}-${country}-past`} fixture={f} country={country} groupStandingsMap={groupStandingsMap} knockoutFixtures={knockoutFixtures} bracketTree={bracketTree} onInfo={setInfoCountry} />
                             ))}
                           </ul>
                         </details>
@@ -318,7 +322,7 @@ export default function App() {
                           <summary className="ko-details-summary">Potential ({potentialKO.length})</summary>
                           <ul className="match-list ko-details-list">
                             {potentialKO.map(f => (
-                              <PotentialMatchCard key={`${f.id}-${country}`} fixture={f} country={country} groupStandingsMap={groupStandingsMap} knockoutFixtures={knockoutFixtures} onInfo={setInfoCountry} />
+                              <PotentialMatchCard key={`${f.id}-${country}`} fixture={f} country={country} groupStandingsMap={groupStandingsMap} knockoutFixtures={knockoutFixtures} bracketTree={bracketTree} onInfo={setInfoCountry} />
                             ))}
                           </ul>
                         </details>
