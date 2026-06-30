@@ -789,7 +789,7 @@ details[open] .ko-details-summary::before { content: "▼"; }
 .card-corner-badge--live {
   background: var(--red);
   color: #fff;
-  animation: pulse 1.5s infinite;
+  animation: pulse 2.5s infinite;
 }
 
 .match-meta {
@@ -824,7 +824,7 @@ details[open] .ko-details-summary::before { content: "▼"; }
   padding: 3px 6px;
   font-size: .7rem;
   font-weight: 700;
-  animation: pulse 1.5s infinite;
+  animation: pulse 2.5s infinite;
 }
 .past-badge {
   background: var(--pitch-mid);
@@ -1332,11 +1332,9 @@ details[open] .ko-details-summary::before { content: "▼"; }
 }
 .cal-week-label {
   position: sticky;
-  /* needed for ::after positioning */
   top: 0;
   z-index: 4;
-  /* solid background + bottom fade via pseudo */
-  background: var(--pitch);
+  background: var(--surface);
   font-size: .68rem;
   font-weight: 700;
   color: var(--text-muted);
@@ -1346,20 +1344,13 @@ details[open] .ko-details-summary::before { content: "▼"; }
   overflow: visible;
 }
 .cal-week-label::after {
-  content: "";
-  position: absolute;
-  left: 0; right: 0;
-  bottom: -18px;
-  height: 18px;
-  background: linear-gradient(to bottom, var(--pitch), transparent);
-  pointer-events: none;
-  z-index: 1;
+  content: none;
 }
 .cal-grid-day-header {
   position: sticky;
   top: 26px;
   z-index: 3;
-  background: var(--pitch);
+  background: var(--surface);
   font-size: .72rem;
   font-weight: 700;
   color: var(--text-muted);
@@ -1374,7 +1365,7 @@ details[open] .ko-details-summary::before { content: "▼"; }
   left: 0; right: 0;
   bottom: -18px;
   height: 18px;
-  background: linear-gradient(to bottom, var(--pitch), transparent);
+  background: linear-gradient(to bottom, var(--surface), transparent);
   pointer-events: none;
   z-index: 1;
 }
@@ -1383,7 +1374,7 @@ details[open] .ko-details-summary::before { content: "▼"; }
   position: sticky;
   left: 0;
   z-index: 2;
-  background: var(--pitch);
+  background: var(--surface);
   font-size: .65rem;
   font-weight: 700;
   color: var(--text-muted);
@@ -1398,7 +1389,7 @@ details[open] .ko-details-summary::before { content: "▼"; }
   top: 0; bottom: 0;
   left: 100%;
   width: 24px;
-  background: linear-gradient(to right, var(--pitch), transparent);
+  background: linear-gradient(to right, var(--surface), transparent);
   pointer-events: none;
   z-index: 1;
 }
