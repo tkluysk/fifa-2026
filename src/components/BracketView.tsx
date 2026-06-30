@@ -86,6 +86,7 @@ interface Props {
   tracked: string[];
   groupStandingsMap: GroupStandingsMap;
   countryGroups: Record<string, string>;
+  nextGameId?: string | null;
 }
 
 const STAGES = ["Round of 32", "Round of 16", "Quarter-final", "Semi-final", "Final", "3rd Place"];
@@ -125,7 +126,7 @@ const COL_GAP = 28; // horizontal gap between columns
 
 // ── Main export ───────────────────────────────────────────────────────────
 
-export function BracketView({ fixtures, tracked, groupStandingsMap, countryGroups, showFull = false }: Props & { showFull?: boolean }) {
+export function BracketView({ fixtures, tracked, groupStandingsMap, countryGroups, showFull = false, nextGameId = null }: Props & { showFull?: boolean }) {
   if (!fixtures.length || !tracked.length) return null;
 
   const paths = tracked
@@ -150,9 +151,9 @@ export function BracketView({ fixtures, tracked, groupStandingsMap, countryGroup
   return (
     <div className="bracket-wrap">
       {showFull ? (
-        <FullBracket byStage={byStage} trackedIds={trackedIds} tracked={tracked} gsMap={groupStandingsMap} knockoutFixtures={fixtures} />
+        <FullBracket byStage={byStage} trackedIds={trackedIds} tracked={tracked} gsMap={groupStandingsMap} knockoutFixtures={fixtures} nextGameId={nextGameId} />
       ) : (
-        <FocusedBracket paths={paths} gsMap={groupStandingsMap} knockoutFixtures={fixtures} />
+        <FocusedBracket paths={paths} gsMap={groupStandingsMap} knockoutFixtures={fixtures} nextGameId={nextGameId} />
       )}
     </div>
   );
@@ -160,10 +161,11 @@ export function BracketView({ fixtures, tracked, groupStandingsMap, countryGroup
 
 // ── Focused view ──────────────────────────────────────────────────────────
 
-function FocusedBracket({ paths, gsMap, knockoutFixtures }: {
+function FocusedBracket({ paths, gsMap, knockoutFixtures, nextGameId }: {
   paths: { country: string; path: KnockoutFixture[] }[];
   gsMap: GroupStandingsMap;
   knockoutFixtures: KnockoutFixture[];
+  nextGameId: string | null;
 }) {
   const stagesPresent = STAGES.filter(s => paths.some(p => p.path.some(f => f.stage === s)));
 
@@ -191,7 +193,7 @@ function FocusedBracket({ paths, gsMap, knockoutFixtures }: {
                 return (
                   <div key={stage} className="bracket-flow-cell">
                     {fixture ? (
-                      <FlowCard fixture={fixture} country={country} gsMap={gsMap} accent={accent} knockoutFixtures={knockoutFixtures} />
+                      <FlowCard fixture={fixture} country={country} gsMap={gsMap} accent={accent} knockoutFixtures={knockoutFixtures} isNext={fixture.id === nextGameId} />
                     ) : (
                       <div className="bracket-flow-empty">?</div>
                     )}
@@ -207,12 +209,13 @@ function FocusedBracket({ paths, gsMap, knockoutFixtures }: {
   );
 }
 
-function FlowCard({ fixture, country, gsMap, accent, knockoutFixtures }: {
+function FlowCard({ fixture, country, gsMap, accent, knockoutFixtures, isNext }: {
   fixture: KnockoutFixture;
   country: string;
   gsMap: GroupStandingsMap;
   accent: string;
   knockoutFixtures: KnockoutFixture[];
+  isNext?: boolean;
 }) {
   const countryLower = country.toLowerCase();
   const isHome =
@@ -238,9 +241,10 @@ function FlowCard({ fixture, country, gsMap, accent, knockoutFixtures }: {
   return (
     <div
       className={`bracket-flow-card${won ? " bracket-flow-card--won" : lost ? " bracket-flow-card--lost" : live ? " bracket-flow-card--live" : ""}`}
-      style={{ borderColor: accent }}
+      style={{ borderColor: accent, position: "relative" }}
     >
-      {live && <div className="bracket-live-pip">LIVE</div>}
+      {live && <span className="card-corner-badge card-corner-badge--live">LIVE</span>}
+      {isNext && !live && <span className="card-corner-badge card-corner-badge--next">NEXT</span>}
       {myScore !== undefined ? (
         <div className={`bracket-flow-score${won ? " bracket-flow-score--won" : lost ? " bracket-flow-score--lost" : ""}`}>
           {myScore}–{theirScore}
@@ -438,12 +442,13 @@ function buildLayout(byStage: Record<string, KnockoutFixture[]>, stages: string[
   return { layouts, connectors, totalW, totalH };
 }
 
-function FullBracket({ byStage, trackedIds, tracked, gsMap, knockoutFixtures }: {
+function FullBracket({ byStage, trackedIds, tracked, gsMap, knockoutFixtures, nextGameId }: {
   byStage: Record<string, KnockoutFixture[]>;
   trackedIds: Set<string>;
   tracked: string[];
   gsMap: GroupStandingsMap;
   knockoutFixtures: KnockoutFixture[];
+  nextGameId: string | null;
 }) {
   const stages = STAGES.filter(s => byStage[s]?.length);
   const { layouts, connectors, totalW, totalH } = buildLayout(byStage, stages);
@@ -489,7 +494,7 @@ function FullBracket({ byStage, trackedIds, tracked, gsMap, knockoutFixtures }: 
               key={fixture.id}
               style={{ position: "absolute", top, left, width: CARD_W, height: CARD_H }}
             >
-              <FullCard fixture={fixture} highlighted={highlighted} gsMap={gsMap} tracked={tracked} knockoutFixtures={knockoutFixtures} />
+              <FullCard fixture={fixture} highlighted={highlighted} gsMap={gsMap} tracked={tracked} knockoutFixtures={knockoutFixtures} isNext={fixture.id === nextGameId} />
             </div>
           );
         })}
@@ -498,12 +503,13 @@ function FullBracket({ byStage, trackedIds, tracked, gsMap, knockoutFixtures }: 
   );
 }
 
-function FullCard({ fixture, highlighted, gsMap, tracked, knockoutFixtures }: {
+function FullCard({ fixture, highlighted, gsMap, tracked, knockoutFixtures, isNext }: {
   fixture: KnockoutFixture;
   highlighted: boolean;
   gsMap: GroupStandingsMap;
   tracked: string[];
   knockoutFixtures: KnockoutFixture[];
+  isNext?: boolean;
 }) {
   const finished = fixture.score?.status === "finished";
   const live = fixture.score?.status === "in_progress";
@@ -516,9 +522,10 @@ function FullCard({ fixture, highlighted, gsMap, tracked, knockoutFixtures }: {
   return (
     <div
       className={`bracket-full-card${highlighted ? " bracket-full-card--highlighted" : ""}`}
-      style={{ width: "100%", height: "100%" }}
+      style={{ width: "100%", height: "100%", position: "relative" }}
     >
-      {live && <div className="bracket-live-pip">LIVE</div>}
+      {live && <span className="card-corner-badge card-corner-badge--live">LIVE</span>}
+      {isNext && !live && <span className="card-corner-badge card-corner-badge--next">NEXT</span>}
       <FullTeamRow name={fixture.home} score={fixture.score?.home} won={homeWon} lost={finished && !homeWon} gsMap={gsMap} tracked={tracked} knockoutFixtures={knockoutFixtures} />
       <div className="bracket-divider" />
       <FullTeamRow name={fixture.away} score={fixture.score?.away} won={awayWon} lost={finished && !awayWon} gsMap={gsMap} tracked={tracked} knockoutFixtures={knockoutFixtures} />

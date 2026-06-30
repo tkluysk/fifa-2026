@@ -133,6 +133,7 @@ export default function App() {
           groupStandingsMap={groupStandingsMap}
           countryGroups={countryGroups}
           showFull={false}
+          nextGameId={globalNextGameId}
         />
       </details>
       <details className="bracket-section">
@@ -143,6 +144,7 @@ export default function App() {
           groupStandingsMap={groupStandingsMap}
           countryGroups={countryGroups}
           showFull={true}
+          nextGameId={globalNextGameId}
         />
       </details>
 
