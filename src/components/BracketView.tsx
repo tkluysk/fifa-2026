@@ -119,6 +119,17 @@ function gcalUrl(f: KnockoutFixture): string {
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
+function scrollToMatch(id: string) {
+  const el = document.getElementById(`match-${id}`);
+  if (!el) return;
+  let node: HTMLElement | null = el.parentElement;
+  while (node) {
+    if (node.tagName === "DETAILS") (node as HTMLDetailsElement).open = true;
+    node = node.parentElement;
+  }
+  setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
+}
+
 // ── Card dimensions (px) ──────────────────────────────────────────────────
 const CARD_W = 148;
 const CARD_H = 72;
@@ -241,7 +252,9 @@ function FlowCard({ fixture, country, gsMap, accent, knockoutFixtures, isNext }:
   return (
     <div
       className={`bracket-flow-card${won ? " bracket-flow-card--won" : lost ? " bracket-flow-card--lost" : live ? " bracket-flow-card--live" : ""}`}
-      style={{ borderColor: accent, position: "relative" }}
+      style={{ borderColor: accent, position: "relative", cursor: "pointer" }}
+      onClick={() => scrollToMatch(fixture.id)}
+      title="Jump to match details"
     >
       {live && <span className="card-corner-badge card-corner-badge--live">LIVE</span>}
       {isNext && !live && <span className="card-corner-badge card-corner-badge--next">NEXT</span>}
@@ -522,7 +535,9 @@ function FullCard({ fixture, highlighted, gsMap, tracked, knockoutFixtures, isNe
   return (
     <div
       className={`bracket-full-card${highlighted ? " bracket-full-card--highlighted" : ""}`}
-      style={{ width: "100%", height: "100%", position: "relative" }}
+      style={{ width: "100%", height: "100%", position: "relative", cursor: "pointer" }}
+      onClick={() => scrollToMatch(fixture.id)}
+      title="Jump to match details"
     >
       {live && <span className="card-corner-badge card-corner-badge--live">LIVE</span>}
       {isNext && !live && <span className="card-corner-badge card-corner-badge--next">NEXT</span>}

@@ -84,7 +84,7 @@ export function PotentialMatchCard({ fixture, country, groupStandingsMap, knocko
   const theirScore = fixture.score ? (isHome ? fixture.score.away : fixture.score.home) : undefined;
 
   return (
-    <li className="match-card potential" style={{
+    <li id={`match-${fixture.id}`} className="match-card potential" style={{
       background: `linear-gradient(105deg, ${homeColor.bg} 0%, ${homeColor.bg} 45%, var(--surface) 50%, ${awayColor.bg} 55%, ${awayColor.bg} 100%)`,
       borderLeft: `3px solid ${homeColor.accent}`,
       borderRight: `3px solid ${awayColor.accent}`,

@@ -61,7 +61,7 @@ export function MatchCard({ match, tracked, score, onInfo, isNext }: Props) {
   };
 
   return (
-    <li className={`match-card ${status}`} style={cardStyle}>
+    <li id={`match-${match.id}`} className={`match-card ${status}`} style={cardStyle}>
       {/* Corner status badge */}
       {status === "live" && <span className="card-corner-badge card-corner-badge--live">LIVE</span>}
       {isNext && status !== "live" && <span className="card-corner-badge card-corner-badge--next">NEXT</span>}

@@ -466,6 +466,7 @@ details[open].bracket-section > .bracket-section-summary::before { content: "▼
 .bracket-flow-card--won { background: rgba(37,167,90,.08); border-color: rgba(37,167,90,.4); }
 .bracket-flow-card--lost { opacity: .45; }
 .bracket-flow-card--live { border-color: var(--gold); }
+.bracket-flow-card:hover { filter: brightness(1.06); }
 
 .bracket-live-pip {
   position: absolute;
@@ -571,6 +572,7 @@ details[open].bracket-section > .bracket-section-summary::before { content: "▼
   overflow: visible;
   position: relative;
 }
+.bracket-full-card:hover { filter: brightness(1.06); }
 .bracket-full-card--highlighted {
   background: var(--pitch-mid);
 }
