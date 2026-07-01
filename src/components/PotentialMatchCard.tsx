@@ -61,7 +61,7 @@ function stageCode(stage: string): string {
 
 export function PotentialMatchCard({ fixture, country, groupStandingsMap, knockoutFixtures, bracketTree, onInfo, isNext }: Props) {
   const homeColor = countryColor(country);
-  const tree = bracketTree ?? buildBracketTree(knockoutFixtures);
+  const tree = bracketTree ?? buildBracketTree(knockoutFixtures, groupStandingsMap);
   const fixtureMap = new Map(knockoutFixtures.map(f => [f.id, f]));
   const countryLower = country.toLowerCase();
   const homeCandidates = upstreamTeams(fixture.id, "home", fixtureMap, tree, groupStandingsMap);

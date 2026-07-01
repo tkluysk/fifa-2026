@@ -129,6 +129,13 @@ export default function App() {
         eliminatedSet={eliminatedSet}
       />
 
+      <div className="below-picker">
+      {liveLoading && (
+        <div className="live-loading-overlay">
+          <span className="spinner" /> Fetching live data…
+        </div>
+      )}
+
       <div className="toolbar">
         <div className="toolbar-left">
           <button className="view-btn view-btn--ics" onClick={handleIcsDownload} disabled={matches.length === 0} title="Download as .ics — import into Google Cal, Apple Cal or Outlook">
@@ -172,11 +179,11 @@ export default function App() {
             <rect x="7" y="5" width="5" height="3" rx="0.5" fill="currentColor"/>
             <rect x="7" y="12" width="5" height="3" rx="0.5" fill="currentColor"/>
             <rect x="2" y="8.5" width="5" height="3" rx="0.5" fill="currentColor"/>
-            <line x1="12" y1="6.5" x2="13" y2="6.5" stroke="currentColor" stroke-width="1"/>
-            <line x1="12" y1="13.5" x2="13" y2="13.5" stroke="currentColor" stroke-width="1"/>
-            <line x1="12" y1="6.5" x2="12" y2="13.5" stroke="currentColor" stroke-width="1"/>
-            <line x1="12" y1="10" x2="12.5" y2="10" stroke="currentColor" stroke-width="1"/>
-            <line x1="7" y1="10" x2="7.5" y2="10" stroke="currentColor" stroke-width="1"/>
+            <line x1="12" y1="6.5" x2="13" y2="6.5" stroke="currentColor" strokeWidth="1"/>
+            <line x1="12" y1="13.5" x2="13" y2="13.5" stroke="currentColor" strokeWidth="1"/>
+            <line x1="12" y1="6.5" x2="12" y2="13.5" stroke="currentColor" strokeWidth="1"/>
+            <line x1="12" y1="10" x2="12.5" y2="10" stroke="currentColor" strokeWidth="1"/>
+            <line x1="7" y1="10" x2="7.5" y2="10" stroke="currentColor" strokeWidth="1"/>
           </svg>
           Full Bracket
         </summary>
@@ -192,11 +199,6 @@ export default function App() {
       </details>
 
       <main className="main">
-        {liveLoading && (
-          <div className="scores-loading">
-            <span className="spinner" /> Fetching live scores…
-          </div>
-        )}
         {selected.length === 0 ? (
           <p className="empty">Select at least one country above.</p>
         ) : (
@@ -204,9 +206,9 @@ export default function App() {
           <details className="bracket-section">
             <summary className="bracket-section-summary">
               <svg className="section-icon" viewBox="0 0 20 20" fill="none" width="14" height="14" aria-hidden="true">
-                <rect x="2" y="4" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/>
-                <path d="M2 8H18" stroke="currentColor" stroke-width="1.5"/>
-                <path d="M6 2V5M14 2V5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <rect x="2" y="4" width="16" height="14" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M2 8H18" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M6 2V5M14 2V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                 <rect x="5" y="11" width="2" height="2" rx="0.3" fill="currentColor"/>
                 <rect x="9" y="11" width="2" height="2" rx="0.3" fill="currentColor"/>
                 <rect x="13" y="11" width="2" height="2" rx="0.3" fill="currentColor"/>
@@ -336,6 +338,7 @@ export default function App() {
           </>
         )}
       </main>
+      </div>{/* .below-picker */}
 
       <footer className="site-footer">
         <a href="/privacy.html" target="_blank" rel="noreferrer">Privacy Policy</a>

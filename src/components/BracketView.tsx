@@ -160,7 +160,7 @@ const COL_GAP = 28; // horizontal gap between columns
 export function BracketView({ fixtures, bracketTree: treeProp, tracked, groupStandingsMap, countryGroups, showFull = false, nextGameId = null }: Props & { showFull?: boolean }) {
   if (!fixtures.length || !tracked.length) return null;
 
-  const tree = treeProp ?? buildBracketTree(fixtures);
+  const tree = treeProp ?? buildBracketTree(fixtures, groupStandingsMap);
 
   const paths = tracked
     .map(country => {
@@ -338,56 +338,7 @@ interface ConnectorLine {
   mid: number; // x of mid-point for the bent connector
 }
 
-// Extract 1-based ESPN slot number from a label like "Round of 32 3 Winner" → 3
-function extractSlotNum(label: string): number | null {
-  const m = label.match(/\b(\d+)\s+winner\b/i);
-  return m ? parseInt(m[1], 10) : null;
-}
-
-
-/**
- * For a given fixture in stage N, find the two feeder fixtures from stage N-1.
- * Uses slot labels in the fixture's home/away to look up feeders.
- * Falls back to matching by winner name for resolved slots.
- */
-function findFeeders(
-  fixture: KnockoutFixture,
-  prevFixtures: KnockoutFixture[],
-  prevStagePrefixes: string[],
-): KnockoutFixture[] {
-  const feeders: KnockoutFixture[] = [];
-
-  for (const slot of [fixture.home, fixture.away]) {
-    const slotL = slot.toLowerCase();
-    if (prevStagePrefixes.some(p => slotL.startsWith(p))) {
-      // Slot label: "Round of 32 N Winner" → look up Nth date-sorted fixture
-      const num = extractSlotNum(slot);
-      if (num !== null) {
-        const f = prevFixtures[num - 1];
-        if (f) feeders.push(f);
-      }
-    } else if (!/(group|round of|winner|place|runner|loser|quarterfinal|semifinal|third)/i.test(slot)) {
-      // Real team name — find which prev fixture they won
-      const f = prevFixtures.find(pf => {
-        if (pf.score?.status !== "finished") return false;
-        const w = pf.score.home > pf.score.away ? pf.home : pf.away;
-        return w.toLowerCase() === slotL;
-      });
-      if (f) feeders.push(f);
-    }
-  }
-
-  return feeders;
-}
-
 const STAGE_ORDER = ["Round of 32", "Round of 16", "Quarter-final", "Semi-final", "Final"];
-
-const STAGE_PREFIXES: Record<string, string[]> = {
-  "Round of 32":   ["round of 32"],
-  "Round of 16":   ["round of 16"],
-  "Quarter-final": ["quarterfinal", "quarter-final"],
-  "Semi-final":    ["semifinal", "semi-final"],
-};
 
 /**
  * Layout by DFS from the Final.
@@ -397,32 +348,29 @@ const STAGE_PREFIXES: Record<string, string[]> = {
  * perfect non-overlapping binary-tree layout regardless of how ESPN numbers
  * the slots or which pairs are adjacent.
  */
-function buildLayout(byStage: Record<string, KnockoutFixture[]>, stages: string[]): {
+function buildLayout(byStage: Record<string, KnockoutFixture[]>, stages: string[], tree: BracketTree, allFixtures: KnockoutFixture[]): {
   layouts: MatchLayout[];
   connectors: ConnectorLine[];
   totalW: number;
   totalH: number;
 } {
-  // Sort every stage by ESPN event ID — ID order == bracket slot order
-  const byStageById: Record<string, KnockoutFixture[]> = {};
-  for (const stage of stages) {
-    byStageById[stage] = (byStage[stage] ?? []).slice().sort((a, b) => parseInt(a.id) - parseInt(b.id));
-  }
+  const fixtureById = new Map(allFixtures.map(f => [f.id, f]));
 
-  // Precompute feeders for every fixture (id → KnockoutFixture[])
+  // Resolve feeders from the bracket tree (already correctly built)
   const feedersOf: Record<string, KnockoutFixture[]> = {};
   for (const stage of stages) {
-    const si = STAGE_ORDER.indexOf(stage);
-    const prevStage = si > 0 ? STAGE_ORDER[si - 1] : null;
-    const prevFixtures = prevStage ? (byStageById[prevStage] ?? []) : [];
-    const prefixes = prevStage ? (STAGE_PREFIXES[prevStage] ?? [prevStage.toLowerCase()]) : [];
-    for (const fixture of byStageById[stage]) {
-      feedersOf[fixture.id] = prevFixtures.length ? findFeeders(fixture, prevFixtures, prefixes) : [];
+    for (const fixture of (byStage[stage] ?? [])) {
+      const pair = tree.feedersOf.get(fixture.id);
+      if (!pair) { feedersOf[fixture.id] = []; continue; }
+      feedersOf[fixture.id] = pair
+        .filter((id): id is string => id !== null)
+        .map(id => fixtureById.get(id))
+        .filter((f): f is KnockoutFixture => f !== undefined);
     }
   }
 
   // DFS from Final — assign sequential leaf (R32) rows as encountered
-  const final = (byStageById["Final"] ?? [])[0];
+  const final = (byStage["Final"] ?? [])[0];
   const fixtureRow: Record<string, number> = {};
   let nextLeaf = 0;
 
@@ -443,7 +391,7 @@ function buildLayout(byStage: Record<string, KnockoutFixture[]>, stages: string[
 
   // Any fixture not reached (e.g. 3rd-place match) — append below
   for (const stage of stages) {
-    for (const f of byStageById[stage]) {
+    for (const f of byStage[stage] ?? []) {
       if (fixtureRow[f.id] === undefined) fixtureRow[f.id] = nextLeaf++;
     }
   }
@@ -490,7 +438,7 @@ function FullBracket({ byStage, trackedIds, tracked, gsMap, knockoutFixtures, tr
   nextGameId: string | null;
 }) {
   const stages = STAGES.filter(s => byStage[s]?.length);
-  const { layouts, connectors, totalW, totalH } = buildLayout(byStage, stages);
+  const { layouts, connectors, totalW, totalH } = buildLayout(byStage, stages, tree, knockoutFixtures);
 
   // Column headers: evenly spaced
   const colW = CARD_W;
@@ -551,7 +499,7 @@ export function FullCard({ fixture, highlighted, gsMap, tracked, knockoutFixture
   tree?: BracketTree;
   isNext?: boolean;
 }) {
-  const tree = treeProp ?? buildBracketTree(knockoutFixtures);
+  const tree = treeProp ?? buildBracketTree(knockoutFixtures, gsMap);
   const fixtureMap = new Map(knockoutFixtures.map(f => [f.id, f]));
   const finished = fixture.score?.status === "finished";
   const live = fixture.score?.status === "in_progress";

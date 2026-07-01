@@ -586,7 +586,7 @@ details[open].bracket-section > .bracket-section-summary::before { content: "▼
 .bracket-full-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 6px;
   margin-top: 1px;
 }
 .bracket-full-date {
@@ -595,6 +595,7 @@ details[open].bracket-section > .bracket-section-summary::before { content: "▼
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-right: auto; /* push TVNZ + calendar to the right, adjacent */
 }
 .bracket-full-team {
   display: flex;
@@ -723,16 +724,29 @@ details[open] .ko-details-summary::before { content: "▼"; }
   padding: .75rem;
 }
 
+/* ── Live-loading overlay ─────────────────────────────────────────────────── */
+.below-picker {
+  position: relative;
+}
+.live-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 80px;
+  gap: 8px;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: blur(2px);
+  font-size: .88rem;
+  color: var(--text-muted);
+  pointer-events: all;
+  cursor: wait;
+}
+
 /* ── Match list ──────────────────────────────────────────────────────────── */
 .main { }
-.scores-loading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: .82rem;
-  color: var(--text-muted);
-  padding: 10px 0 6px;
-}
 .match-list {
   list-style: none;
   display: flex;

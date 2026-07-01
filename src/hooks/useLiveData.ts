@@ -7,6 +7,8 @@
 import { useState, useEffect } from "react";
 import type { Match } from "../matches";
 import { normaliseTeamName, tvnzPathForMatch } from "../matches";
+import { BRACKET_2026, DEFINITE_SLOT_TO_MATCH } from "../bracket2026";
+import type { Round, Feeder } from "../bracket2026";
 
 export interface MatchCard {
   player: string;
@@ -123,92 +125,140 @@ export interface BracketTree {
   parentOf:  Map<string, string>;
 }
 
+/** Normalised stage string → bracket round. */
+function roundOfStage(stage: string): Round | null {
+  if (/32/.test(stage)) return "R32";
+  if (/16/.test(stage)) return "R16";
+  if (/quarter/i.test(stage)) return "QF";
+  if (/semi/i.test(stage)) return "SF";
+  if (/3rd|third|bronze/i.test(stage)) return "BRONZE";
+  if (/final/i.test(stage)) return "FINAL";
+  return null;
+}
+
+/** Real team name → its group slot ("1A" winner, "2B" runner-up, "3C" third),
+ *  from the live group standings. Null if the team isn't found. */
+function teamGroupSlot(team: string, gsMap: GroupStandingsMap): string | null {
+  const t = team.toLowerCase();
+  for (const [g, ranked] of Object.entries(gsMap)) {
+    if (ranked[0]?.toLowerCase() === t) return `1${g}`;
+    if (ranked[1]?.toLowerCase() === t) return `2${g}`;
+    if (ranked[2]?.toLowerCase() === t) return `3${g}`;
+  }
+  return null;
+}
+
+/** A group-placement placeholder label → slot. "Group A Winner" → "1A",
+ *  "Group C Runner-up"/"Group C 2nd Place" → "2C". These are real tournament
+ *  mechanics (resolvable from standings), unlike ESPN's brittle
+ *  "Round of N Winner" bracket bookkeeping, which we never parse. */
+function parseGroupSlotLabel(label: string): string | null {
+  const win = label.match(/group ([a-l]) winner/i);
+  if (win) return `1${win[1].toUpperCase()}`;
+  const run = label.match(/group ([a-l]) (runner|2nd)/i);
+  if (run) return `2${run[1].toUpperCase()}`;
+  return null;
+}
+
 /**
- * Build the bracket tree from a flat list of knockout fixtures.
+ * Build the bracket tree by anchoring each ESPN fixture onto the fixed FIFA
+ * match numbers (73–104) from the bracket model (src/bracket2026.ts), then
+ * reading parent/feeder wiring straight from that model. ESPN supplies only team
+ * identities and outcomes — never the tournament structure. No "Round of N
+ * Winner" strings and no reliance on ESPN's fixture ordering are involved.
  *
- * Strategy: for each fixture whose home/away slot is a "Stage N Winner" label,
- * find the Nth (ESPN-ID-sorted) fixture in that stage and record the link.
- * Also handles the case where ESPN has already replaced a slot label with the
- * real team name — in that case we look for a finished fixture in the expected
- * feeder stage that has that team as home or away.
+ * Anchoring:
+ *  1. R32 — identify each fixture by its *definite* group slot (a specific group
+ *     winner or runner-up), resolved from standings or a group-slot placeholder.
+ *  2. R16→Final — propagate: a real team in a later-round fixture is the winner
+ *     of an already-anchored feeder match, whose model `.next` names this match.
+ *  3. Leftover all-unplayed fixtures — assign to the remaining model matches of
+ *     their round by kick-off order (best-effort; self-corrects as games play).
  */
-export function buildBracketTree(fixtures: KnockoutFixture[]): BracketTree {
+export function buildBracketTree(fixtures: KnockoutFixture[], gsMap: GroupStandingsMap = {}): BracketTree {
+  const matchToFixture = new Map<number, string>();
+  const fixtureToMatch = new Map<string, number>();
+  const byId = new Map(fixtures.map(f => [f.id, f]));
+
+  const anchor = (fixtureId: string, match: number) => {
+    if (matchToFixture.has(match) || fixtureToMatch.has(fixtureId)) return;
+    matchToFixture.set(match, fixtureId);
+    fixtureToMatch.set(fixtureId, match);
+  };
+
+  const byRound = new Map<Round, KnockoutFixture[]>();
+  for (const f of fixtures) {
+    const r = roundOfStage(f.stage);
+    if (!r) continue;
+    if (!byRound.has(r)) byRound.set(r, []);
+    byRound.get(r)!.push(f);
+  }
+
+  // 1. Anchor R32 by its definite group slot.
+  for (const f of byRound.get("R32") ?? []) {
+    for (const team of [f.home, f.away]) {
+      const slot = teamGroupSlot(team, gsMap) ?? parseGroupSlotLabel(team);
+      if (slot && (slot[0] === "1" || slot[0] === "2")) {
+        const m = DEFINITE_SLOT_TO_MATCH[slot];
+        if (m) { anchor(f.id, m); break; }
+      }
+    }
+  }
+
+  // 2. Propagate up: a later-round fixture carrying a real team is identified by
+  //    the already-anchored feeder match that team won (model `.next`). Repeat
+  //    so QF/SF/Final resolve as their feeders get anchored.
+  const laterRounds: Round[] = ["R16", "QF", "SF", "FINAL", "BRONZE"];
+  for (let pass = 0; pass < laterRounds.length; pass++) {
+    for (const round of laterRounds) {
+      for (const f of byRound.get(round) ?? []) {
+        if (fixtureToMatch.has(f.id)) continue;
+        for (const team of [f.home, f.away]) {
+          if (isTBDSlot(team)) continue;
+          const t = team.toLowerCase();
+          let feederMatch: number | undefined;
+          for (const [m, fid] of matchToFixture) {
+            const ff = byId.get(fid);
+            if (ff && fixtureWinner(ff)?.toLowerCase() === t) { feederMatch = m; break; }
+          }
+          const next = feederMatch != null ? BRACKET_2026[feederMatch]?.next : null;
+          if (next != null && !matchToFixture.has(next)) { anchor(f.id, next); break; }
+        }
+      }
+    }
+  }
+
+  // 3. Leftover fixtures (both feeders still unplayed) → remaining model matches
+  //    of that round, paired by kick-off time. Best-effort only; the structure
+  //    still comes from the model, and this self-corrects as games resolve.
+  for (const round of ["R32", ...laterRounds] as Round[]) {
+    const free = Object.values(BRACKET_2026)
+      .filter(m => m.round === round && !matchToFixture.has(m.match))
+      .map(m => m.match)
+      .sort((a, b) => a - b);
+    const orphans = (byRound.get(round) ?? [])
+      .filter(f => !fixtureToMatch.has(f.id))
+      .sort((a, b) => a.startUtc.localeCompare(b.startUtc));
+    orphans.forEach((f, i) => { if (free[i] != null) anchor(f.id, free[i]); });
+  }
+
+  // Read parent/feeder wiring straight from the model.
   const feedersOf = new Map<string, [string | null, string | null]>();
   const parentOf  = new Map<string, string>();
+  const feederMatchOf = (side: Feeder): number | null =>
+    side.kind === "winnerOf" ? side.match : null; // loserOf (bronze) has no bracket feeder
 
-  const NEXT_STAGE: Record<string, string> = {
-    "Round of 32":   "Round of 16",
-    "Round of 16":   "Quarter-final",
-    "Quarter-final": "Semi-final",
-    "Semi-final":    "Final",
-  };
-  const PREV_STAGE: Record<string, string> = Object.fromEntries(
-    Object.entries(NEXT_STAGE).map(([k, v]) => [v, k])
-  );
-  const STAGE_LABEL_NORM: Record<string, string> = {
-    "round of 32":   "Round of 32",
-    "round of 16":   "Round of 16",
-    "quarter-final": "Quarter-final",
-    "quarterfinal":  "Quarter-final",
-    "semi-final":    "Semi-final",
-    "semifinal":     "Semi-final",
-    "final":         "Final",
-  };
-
-  // Index: stage → fixtures sorted by ESPN ID (= bracket slot order)
-  const byStage = new Map<string, KnockoutFixture[]>();
-  for (const f of fixtures) {
-    if (!byStage.has(f.stage)) byStage.set(f.stage, []);
-    byStage.get(f.stage)!.push(f);
-  }
-  for (const arr of byStage.values()) {
-    arr.sort((a, b) => parseInt(a.id) - parseInt(b.id));
-  }
-
-  // For each fixture, determine its two feeders
-  for (const f of fixtures) {
-    const prevStage = PREV_STAGE[f.stage];
-    if (!prevStage) continue; // R32 has no prev stage in knockout tree
-
-    const prevArr = byStage.get(prevStage) ?? [];
-    const feeders: [string | null, string | null] = [null, null];
-
-    for (let side = 0; side < 2; side++) {
-      const slot = side === 0 ? f.home : f.away;
-
-      // Case 1: slot is a "Stage N Winner" label → look up by index
-      const slotM = slot.match(/^(Round of \d+|Quarter-final|Semi-final|Quarterfinal|Semifinal)\s+(\d+)\s+winner$/i);
-      if (slotM) {
-        const stage = STAGE_LABEL_NORM[slotM[1].toLowerCase()];
-        const num   = parseInt(slotM[2], 10);
-        if (stage === prevStage) {
-          const feeder = (byStage.get(stage) ?? [])[num - 1];
-          if (feeder) {
-            feeders[side] = feeder.id;
-            parentOf.set(feeder.id, f.id);
-          }
-        }
-        continue;
-      }
-
-      // Case 2: slot is already a real team name (ESPN resolved it)
-      // Find the finished feeder fixture in prevStage that has this team
-      if (!isTBDSlot(slot)) {
-        const slotLower = slot.toLowerCase();
-        const feeder = prevArr.find(pf =>
-          pf.home.toLowerCase() === slotLower || pf.away.toLowerCase() === slotLower
-        );
-        if (feeder) {
-          feeders[side] = feeder.id;
-          parentOf.set(feeder.id, f.id);
-        }
-      }
-
-      // Case 3: slot is a group-stage placeholder ("Group G Winner" etc.)
-      // R32 feeders from the group stage — no prev knockout fixture, leave null
-    }
-
-    feedersOf.set(f.id, feeders);
+  for (const [match, fixtureId] of matchToFixture) {
+    const model = BRACKET_2026[match];
+    if (!model) continue;
+    const homeM = feederMatchOf(model.home);
+    const awayM = feederMatchOf(model.away);
+    if (homeM == null && awayM == null) continue; // R32: fed by the group stage
+    const homeFid = homeM != null ? matchToFixture.get(homeM) ?? null : null;
+    const awayFid = awayM != null ? matchToFixture.get(awayM) ?? null : null;
+    feedersOf.set(fixtureId, [homeFid, awayFid]);
+    if (homeFid) parentOf.set(homeFid, fixtureId);
+    if (awayFid) parentOf.set(awayFid, fixtureId);
   }
 
   return { feedersOf, parentOf };
@@ -768,7 +818,7 @@ export function useLiveData(): LiveData {
         setMatches(fetched);
         setScores(fetchedScores);
         setKnockoutFixtures(knockouts);
-        setBracketTree(buildBracketTree(knockouts));
+        setBracketTree(buildBracketTree(knockouts, gsMap));
         setGroupStandingsMap(gsMap);
         setAdvancedSet(advanced);
         setEliminatedSet(eliminated);
