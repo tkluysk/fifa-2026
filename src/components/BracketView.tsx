@@ -338,8 +338,6 @@ interface ConnectorLine {
   mid: number; // x of mid-point for the bent connector
 }
 
-const STAGE_ORDER = ["Round of 32", "Round of 16", "Quarter-final", "Semi-final", "Final"];
-
 /**
  * Layout by DFS from the Final.
  *
