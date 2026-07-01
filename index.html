@@ -2,6 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Vanity-host redirect: worldcup.9x9x9.com → fifa26.9x9x9.com (preserves
+      // path/query/hash). No-op on every other host (fifa26, the *.amplifyapp.com
+      // URL, localhost), so it can't affect the primary site. Runs before render.
+      if (location.hostname === "worldcup.9x9x9.com") {
+        location.replace("https://fifa26.9x9x9.com" + location.pathname + location.search + location.hash);
+      }
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="256x256" href="/favicon.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
