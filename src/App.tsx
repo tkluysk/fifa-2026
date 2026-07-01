@@ -130,12 +130,13 @@ export default function App() {
       />
 
       <div className="below-picker">
-      {liveLoading && (
+      {liveLoading && selected.length > 0 && (
         <div className="live-loading-overlay">
           <span className="spinner" /> Fetching live data…
         </div>
       )}
 
+      {selected.length > 0 && (<>
       <div className="toolbar">
         <div className="toolbar-left">
           <button className="view-btn view-btn--ics" onClick={handleIcsDownload} disabled={matches.length === 0} title="Download as .ics — import into Google Cal, Apple Cal or Outlook">
@@ -197,6 +198,7 @@ export default function App() {
           nextGameId={globalNextGameId}
         />
       </details>
+      </>)}
 
       <main className="main">
         {selected.length === 0 ? (
